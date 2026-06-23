@@ -1137,6 +1137,153 @@ app.post("/api/simulate-drive-edit", (req, res) => {
   }
 });
 
+// Endpoint 7: Generate Productivity Insights
+app.post("/api/generate-insights", async (req, res) => {
+  try {
+    const { tasks } = req.body;
+    if (!tasks || !Array.isArray(tasks)) {
+      return res.status(400).json({ error: "Tasks array is required" });
+    }
+
+    const ai = getGeminiClient();
+    const prompt = `
+      You are Heimdall, an elite productivity analyst. Analyze the user's weekly task data and provide insights.
+      
+      Today's Date: Tuesday, June 23, 2026.
+      
+      User's tasks for the week:
+      ${JSON.stringify(tasks, null, 2)}
+      
+      Your task is to:
+      1. Calculate completion rates by category (thesis, presentation, appointment, break, general)
+      2. Identify productivity patterns (e.g., most productive days, times)
+      3. Provide actionable recommendations for improvement
+      4. Highlight strengths and areas for growth
+      
+      Return a JSON object matching this schema:
+      {
+        "overview": {
+          "totalTasks": number,
+          "completedTasks": number,
+          "completionRate": number (0-100),
+          "productivityTrend": "improving" | "declining" | "stable"
+        },
+        "categoryBreakdown": [
+          {
+            "category": string,
+            "total": number,
+            "completed": number,
+            "completionRate": number (0-100)
+          }
+        ],
+        "dailyPattern": [
+          {
+            "day": string (e.g., "Monday"),
+            "tasksCompleted": number,
+            "productivityScore": number (0-100)
+          }
+        ],
+        "insights": [
+          {
+            "type": "strength" | "opportunity",
+            "title": string,
+            "description": string
+          }
+        ],
+        "recommendations": [
+          {
+            "priority": "high" | "medium" | "low",
+            "action": string,
+            "expectedImpact": string
+          }
+        ]
+      }
+    `;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            overview: {
+              type: Type.OBJECT,
+              properties: {
+                totalTasks: { type: Type.INTEGER },
+                completedTasks: { type: Type.INTEGER },
+                completionRate: { type: Type.NUMBER },
+                productivityTrend: { 
+                  type: Type.STRING, 
+                  enum: ["improving", "declining", "stable"] 
+                }
+              },
+              required: ["totalTasks", "completedTasks", "completionRate", "productivityTrend"]
+            },
+            categoryBreakdown: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  category: { type: Type.STRING },
+                  total: { type: Type.INTEGER },
+                  completed: { type: Type.INTEGER },
+                  completionRate: { type: Type.NUMBER }
+                },
+                required: ["category", "total", "completed", "completionRate"]
+              }
+            },
+            dailyPattern: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  day: { type: Type.STRING },
+                  tasksCompleted: { type: Type.INTEGER },
+                  productivityScore: { type: Type.NUMBER }
+                },
+                required: ["day", "tasksCompleted", "productivityScore"]
+              }
+            },
+            insights: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  type: { type: Type.STRING, enum: ["strength", "opportunity"] },
+                  title: { type: Type.STRING },
+                  description: { type: Type.STRING }
+                },
+                required: ["type", "title", "description"]
+              }
+            },
+            recommendations: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  priority: { type: Type.STRING, enum: ["high", "medium", "low"] },
+                  action: { type: Type.STRING },
+                  expectedImpact: { type: Type.STRING }
+                },
+                required: ["priority", "action", "expectedImpact"]
+              }
+            }
+          },
+          required: ["overview", "categoryBreakdown", "dailyPattern", "insights", "recommendations"]
+        }
+      }
+    });
+
+    const parsedData = JSON.parse(response.text || "{}");
+    res.json(parsedData);
+  } catch (error: any) {
+    console.error("Error generating insights:", error);
+    res.status(500).json({ error: error.message || "An error occurred while generating insights." });
+  }
+});
+
 // Configure Vite or Static Production Serve
 
 // Configure Vite or Static Production Serve
