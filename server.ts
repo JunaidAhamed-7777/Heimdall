@@ -461,6 +461,7 @@ export interface TaskItem {
   deadline_time: string | null;
   source_email?: { subject: string; sender: string };
   is_email_task?: boolean;
+  driveFileId?: string;
 }
 
 // Add task from email to tasks array
