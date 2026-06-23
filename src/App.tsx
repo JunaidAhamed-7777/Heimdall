@@ -743,27 +743,122 @@ export default function App() {
     }).catch(err => console.error("Habit completion log err:", err));
   };
 
-  // 3. Check Habit Status (queries status for nudges)
-  const executeCheckHabitStatus = (daysToCheck: number = 3) => {
-    const todayDateStr = getSimulatedDate(simulatedDay);
-    const todayIdx = getSimulatedDateIndex(todayDateStr);
+// 3. Check Habit Status (queries status for nudges)
+   const executeCheckHabitStatus = (daysToCheck: number = 3) => {
+     const todayDateStr = getSimulatedDate(simulatedDay);
+     const todayIdx = getSimulatedDateIndex(todayDateStr);
 
-    const reports = habitsRef.current.map(h => {
-      const lastCompletedVal = h.lastCompletedDate || h.createdAt;
-      if (!lastCompletedVal) {
-        return { name: h.name, daysSince: daysToCheck, streak: h.streak || 0 };
-      }
-      const lastCompletedIdx = getSimulatedDateIndex(lastCompletedVal);
-      const daysSince = lastCompletedIdx !== -1 ? (todayIdx - lastCompletedIdx) : daysToCheck;
-      return { name: h.name, daysSince, streak: h.streak || 0 };
-    });
+     const reports = habitsRef.current.map(h => {
+       const lastCompletedVal = h.lastCompletedDate || h.createdAt;
+       if (!lastCompletedVal) {
+         return { name: h.name, daysSince: daysToCheck, streak: h.streak || 0 };
+       }
+       const lastCompletedIdx = getSimulatedDateIndex(lastCompletedVal);
+       const daysSince = lastCompletedIdx !== -1 ? (todayIdx - lastCompletedIdx) : daysToCheck;
+       return { name: h.name, daysSince, streak: h.streak || 0 };
+     });
 
-    console.log("Habit status audits executed:", reports);
-    return reports;
-  };
+     console.log("Habit status audits executed:", reports);
+     return reports;
+   };
 
-  // 4. Detect schedule gaps and match micro-tasks
-  const executeDetectGapsAndNudge = async () => {
+   // Register a Google Drive document for a task
+   const executeRegisterDriveDocument = async (taskTitle: string, fileIdOrUrl: string) => {
+     if (!taskTitle || !fileIdOrUrl) {
+       setChatMessages(prev => [
+         ...prev,
+         {
+           id: `msg-drive-reg-error-${Date.now()}`,
+           role: "model",
+           content: "I need both a task title and a file ID or URL to register your document.",
+           timestamp: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+         }
+       ]);
+       return;
+     }
+
+     // Extract file ID from Google Drive URL if needed
+     let fileId = fileIdOrUrl.trim();
+     if (fileId.includes("drive.google.com")) {
+       // Try to extract file ID from common Google Drive URL patterns
+       const patterns = [
+         /\/d\/([a-zA-Z0-9_-]+)/, // Standard format: https://drive.google.com/file/d/FILE_ID/view
+         /[?&]id=([a-zA-Z0-9_-]+)/, // Parameter format: https://drive.google.com/?id=FILE_ID
+         /\/file\/d\/([a-zA-Z0-9_-]+)/ // Alternative format
+       ];
+       
+       for (const pattern of patterns) {
+         const match = fileId.match(pattern);
+         if (match && match[1]) {
+           fileId = match[1];
+           break;
+         }
+       }
+       
+       // If we couldn't extract an ID, show an error
+       if (fileId === fileIdOrUrl.trim() && fileId.includes("drive.google.com")) {
+         setChatMessages(prev => [
+           ...prev,
+           {
+             id: `msg-drive-reg-error-${Date.now()}`,
+             role: "model",
+             content: "I couldn't extract a file ID from the Google Drive link you provided. Please share just the file ID or make sure the link is in a standard format.",
+             timestamp: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+           }
+         ]);
+         return;
+       }
+     }
+
+     try {
+       const response = await fetch("/api/register-drive-document", {
+         method: "POST",
+         headers: { "Content-Type": "application/json" },
+         body: JSON.stringify({ taskTitle, fileId })
+       });
+
+       if (!response.ok) {
+         throw new Error(`Registration failed: ${response.status}`);
+       }
+
+       const data = await response.json();
+
+       // Update the task with the driveFileId
+       setTasks(prev =>
+         prev.map(task =>
+           task.task === taskTitle
+             ? { ...task, driveFileId: fileId }
+             : task
+         )
+       );
+
+       setChatMessages(prev => [
+         ...prev,
+         {
+           id: `msg-drive-reg-success-${Date.now()}`,
+           role: "model",
+           content: data.message || `Got it! I'll keep an eye on your "${taskTitle}" document.`,
+           timestamp: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+         }
+       ]);
+     } catch (error) {
+       console.error("Error registering drive document:", error);
+       setChatMessages(prev => [
+         ...prev,
+         {
+           id: `msg-drive-reg-error-${Date.now()}`,
+           role: "model",
+           content: "I had trouble registering your document. Please try again.",
+           timestamp: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+         }
+       ]);
+     }
+   };
+
+
+
+   // 5. Detect schedule gaps and match micro-tasks
+   const executeDetectGapsAndNudge = async () => {
     const parseTimeStr = (tStr: string) => {
       const parts = tStr.trim().split(":");
       const h = parseInt(parts[0] || "0", 10);
@@ -841,81 +936,156 @@ export default function App() {
     }
   };
 
-  // Proactive Day Transition audit (runs trigger when user swaps 'Simulate Day')
-  const handleProactiveDayTransition = (newDay: string) => {
-    const todayDateStr = getSimulatedDate(newDay);
-    const todayIdx = getSimulatedDateIndex(todayDateStr);
+   // Check drive documents for inactivity and send nudges if needed
+   const executeCheckDriveDocuments = async () => {
+     try {
+       // Get all tasks that have driveFileId
+       const tasksWithDriveFiles = tasks.filter(task => task.driveFileId);
+       
+       if (tasksWithDriveFiles.length === 0) {
+         setChatMessages(prev => [
+           ...prev,
+           {
+             id: `msg-drive-none-${Date.now()}`,
+             role: "model",
+             content: "You haven't registered any Google Drive documents yet. When you mention working on a document, I'll ask if it's in Google Drive so I can help you stay on track.",
+             timestamp: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+           }
+         ]);
+         return;
+       }
 
-    let nudgesGenerated = 0;
-    const currentLatestHabits = habitsRef.current;
+       // Check each document
+       for (const task of tasksWithDriveFiles) {
+         try {
+           const response = await fetch(`/api/check-drive-document?taskTitle=${encodeURIComponent(task.task)}`);
+           
+           if (!response.ok) {
+             throw new Error(`Failed to check document for task: ${task.task}`);
+           }
+           
+           const data = await response.json();
+           
+           // If document hasn't been edited in over 2 days and task is not completed
+           if (data.daysSinceLastEdit > 2 && !task.completed) {
+             setChatMessages(prev => [
+               ...prev,
+               {
+                 id: `msg-drive-nudge-${task.id}-${Date.now()}`,
+                 role: "model",
+                 content: `I noticed you haven't edited your "${task.task}" document in ${data.daysSinceLastEdit} days. Want me to block some time this afternoon to get back into it?`,
+                 timestamp: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+               }
+             ]);
+           } else if (data.daysSinceLastEdit <= 2 && !task.completed) {
+             // Positive reinforcement for recently edited documents
+             setChatMessages(prev => [
+               ...prev,
+               {
+                 id: `msg-drive-positive-${task.id}-${Date.now()}`,
+                 role: "model",
+                 content: `Great job! I see you worked on your "${task.task}" document ${data.daysSinceLastEdit === 0 ? 'today' : 'yesterday'}. Keep that momentum going!`,
+                 timestamp: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+               }
+             ]);
+           }
+         } catch (docError) {
+           console.error(`Error checking document for task ${task.task}:`, docError);
+           // Continue with other documents even if one fails
+         }
+       }
+     } catch (error) {
+       console.error("Error checking drive documents:", error);
+       setChatMessages(prev => [
+         ...prev,
+         {
+           id: `msg-drive-error-${Date.now()}`,
+           role: "model",
+           content: "I encountered an error checking your documents. Please try again later.",
+           timestamp: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+         }
+       ]);
+     }
+   };
 
-    currentLatestHabits.forEach(h => {
-      const lastCompletedVal = h.lastCompletedDate || h.createdAt;
-      if (!lastCompletedVal) return;
-      const lastIdx = getSimulatedDateIndex(lastCompletedVal);
-      if (lastIdx === -1) return;
-      const diffDays = todayIdx - lastIdx;
+   // Proactive Day Transition audit (runs trigger when user swaps 'Simulate Day')
+   const handleProactiveDayTransition = (newDay: string) => {
+     const todayDateStr = getSimulatedDate(newDay);
+     const todayIdx = getSimulatedDateIndex(todayDateStr);
 
-      if (diffDays === 2) {
-        // Missed for 2 days nudge
-        nudgesGenerated++;
-        setTimeout(() => {
-          setChatMessages(prev => [
-            ...prev,
-            {
-              id: `msg-nudge-2-${Date.now()}-${h.id}`,
-              role: "model",
-              content: `⚠️ **Heimdall Audit:** I noticed you haven't logged **${h.name}** in 2 days. Want me to block ${h.duration_minutes || 10} minutes this morning to get back on track?`,
-              timestamp: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
-            }
-          ]);
-        }, 500 * nudgesGenerated);
-      } else if (diffDays >= 3) {
-        // Lost streak warning
-        nudgesGenerated++;
-        setTimeout(() => {
-          // Setup suggestions automatically as high priority task!
-          const blockStartTime = h.preferred_time && h.preferred_time.includes(":") ? h.preferred_time : "07:30";
-          let startMin = 7 * 60 + 30; // default 07:30
-          if (blockStartTime.includes(":")) {
-            const parts = blockStartTime.split(":");
-            const hrs = parseInt(parts[0], 10);
-            const mins = parseInt(parts[1], 10);
-            if (!isNaN(hrs) && !isNaN(mins)) {
-              startMin = hrs * 60 + mins;
-            }
-          }
-          const endMin = startMin + (h.duration_minutes || 10);
-          const blockEndTime = `${Math.floor(endMin / 60).toString().padStart(2, "0")}:${(endMin % 60).toString().padStart(2, "0")}`;
+     let nudgesGenerated = 0;
+     const currentLatestHabits = habitsRef.current;
 
-          setChatMessages(prev => [
-            ...prev,
-            {
-              id: `msg-nudge-3-${Date.now()}-${h.id}`,
-              role: "model",
-              content: `💔 **Heimdall Alert:** You've lost your ${h.streak || 0}-day **${h.name}** streak. Let's restart today — "Life happens, let's get back on track together." I've already blocked out **${blockStartTime}–${blockEndTime}** for you as a high-priority self-care session. Just confirm and I'll add it to your calendar!`,
-              timestamp: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
-            }
-          ]);
-        }, 500 * nudgesGenerated);
-      }
-    });
+     currentLatestHabits.forEach(h => {
+       const lastCompletedVal = h.lastCompletedDate || h.createdAt;
+       if (!lastCompletedVal) return;
+       const lastIdx = getSimulatedDateIndex(lastCompletedVal);
+       if (lastIdx === -1) return;
+       const diffDays = todayIdx - lastIdx;
 
-    if (nudgesGenerated === 0 && currentLatestHabits.length > 0) {
-      // All habits are on track, congratulate!
-      setTimeout(() => {
-        setChatMessages(prev => [
-          ...prev,
-          {
-            id: `msg-nudge-ok-${Date.now()}`,
-            role: "model",
-            content: `🌟 **Protocol Clear:** All daily habits are on track! You've maintained consistency beautifully. "You have logged habits successfully! 🔥" Let's keep the streak thriving!`,
-            timestamp: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
-          }
-        ]);
-      }, 500);
-    }
-  };
+       if (diffDays === 2) {
+         // Missed for 2 days nudge
+         nudgesGenerated++;
+         setTimeout(() => {
+           setChatMessages(prev => [
+             ...prev,
+             {
+               id: `msg-nudge-2-${Date.now()}-${h.id}`,
+               role: "model",
+               content: `⚠️ **Heimdall Audit:** I noticed you haven't logged **${h.name}** in 2 days. Want me to block ${h.duration_minutes || 10} minutes this morning to get back on track?`,
+               timestamp: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+             }
+           ]);
+         }, 500 * nudgesGenerated);
+       } else if (diffDays >= 3) {
+         // Lost streak warning
+         nudgesGenerated++;
+         setTimeout(() => {
+           // Setup suggestions automatically as high priority task!
+           const blockStartTime = h.preferred_time && h.preferred_time.includes(":") ? h.preferred_time : "07:30";
+           let startMin = 7 * 60 + 30; // default 07:30
+           if (blockStartTime.includes(":")) {
+             const parts = blockStartTime.split(":");
+             const hrs = parseInt(parts[0], 10);
+             const mins = parseInt(parts[1], 10);
+             if (!isNaN(hrs) && !isNaN(mins)) {
+               startMin = hrs * 60 + mins;
+             }
+           }
+           const endMin = startMin + (h.duration_minutes || 10);
+           const blockEndTime = `${Math.floor(endMin / 60).toString().padStart(2, "0")}:${(endMin % 60).toString().padStart(2, "0")}`;
+
+           setChatMessages(prev => [
+             ...prev,
+             {
+               id: `msg-nudge-3-${Date.now()}-${h.id}`,
+               role: "model",
+               content: `💔 **Heimdall Alert:** You've lost your ${h.streak || 0}-day **${h.name}** streak. Let's restart today — "Life happens, let's get back on track together." I've already blocked out **${blockStartTime}–${blockEndTime}** for you as a high-priority self-care session. Just confirm and I'll add it to your calendar!`,
+               timestamp: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+             }
+           ]);
+         }, 500 * nudgesGenerated);
+       }
+     });
+
+     if (nudgesGenerated === 0 && currentLatestHabits.length > 0) {
+       // All habits are on track, congratulate!
+       setTimeout(() => {
+         setChatMessages(prev => [
+           ...prev,
+           {
+             id: `msg-nudge-ok-${Date.now()}`,
+             role: "model",
+             content: `🌟 **Protocol Clear:** All daily habits are on track! You've maintained consistency beautifully. "You have logged habits successfully! 🔥" Let's keep the streak thriving!`,
+             timestamp: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+           }
+         ]);
+       }, 500);
+     }
+     
+     // Also check drive documents for inactivity
+     executeCheckDriveDocuments();
+   };
 
 
   // --- Dynamic Calculator Helpers ---
@@ -1185,21 +1355,23 @@ export default function App() {
         ]);
       }
 
-      if (data.action && data.action.name && data.action.parameters) {
-        const actionName = data.action.name;
-        const params = data.action.parameters;
-        if (actionName === "create_calendar_events") {
-          create_calendar_events(params.events, params.summary);
-        } else if (actionName === "add_habit") {
-          executeAddHabit(params.habit_name, params.frequency, params.preferred_time, params.duration_minutes);
-        } else if (actionName === "log_habit") {
-          executeLogHabit(params.habit_name, params.date);
-        } else if (actionName === "check_habit_status") {
-          executeCheckHabitStatus(params.days_to_check);
-        } else if (actionName === "detect_gaps_and_nudge") {
-          executeDetectGapsAndNudge();
-        }
-      }
+if (data.action && data.action.name && data.action.parameters) {
+         const actionName = data.action.name;
+         const params = data.action.parameters;
+         if (actionName === "create_calendar_events") {
+           create_calendar_events(params.events, params.summary);
+         } else if (actionName === "add_habit") {
+           executeAddHabit(params.habit_name, params.frequency, params.preferred_time, params.duration_minutes);
+         } else if (actionName === "log_habit") {
+           executeLogHabit(params.habit_name, params.date);
+         } else if (actionName === "check_habit_status") {
+           executeCheckHabitStatus(params.days_to_check);
+         } else if (actionName === "detect_gaps_and_nudge") {
+           executeDetectGapsAndNudge();
+         } else if (actionName === "register_drive_document") {
+           executeRegisterDriveDocument(params.taskTitle, params.fileId);
+         }
+       }
 
       if (data.updatedTasks && Array.isArray(data.updatedTasks)) {
         setTasks(data.updatedTasks);
@@ -1373,6 +1545,56 @@ export default function App() {
             >
               <Zap className="w-3.5 h-3.5 text-amber-400" />
               <span>Detect Gaps</span>
+            </button>
+
+            <button
+              onClick={executeCheckDriveDocuments}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-900 hover:bg-slate-800 text-xs text-slate-300 font-mono font-medium transition-all"
+              title="Check document editing status"
+            >
+              <FileCode className="w-3.5 h-3.5 text-blue-400" />
+              <span>Check Documents</span>
+            </button>
+
+            <button
+              onClick={() => {
+                // For demo purposes, simulate an edit on the first task with a drive file
+                const taskWithDrive = tasks.find(t => t.driveFileId);
+                if (taskWithDrive && taskWithDrive.task) {
+                  fetch(`/api/simulate-drive-edit`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ taskTitle: taskWithDrive.task })
+                  }).then(async () => {
+                    const response = await fetch(`/api/check-drive-document?taskTitle=${encodeURIComponent(taskWithDrive.task)}`);
+                    const data = await response.json();
+                    setChatMessages(prev => [
+                      ...prev,
+                      {
+                        id: `msg-sim-edit-${Date.now()}`,
+                        role: "model",
+                        content: `I've simulated an edit on your "${taskWithDrive.task}" document. Last modified: ${new Date(data.lastModified).toLocaleString()}`,
+                        timestamp: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+                      }
+                    ]);
+                  });
+                } else {
+                  setChatMessages(prev => [
+                    ...prev,
+                    {
+                      id: `msg-sim-edit-none-${Date.now()}`,
+                      role: "model",
+                      content: "No documents registered for simulation. Please register a document first.",
+                      timestamp: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+                    }
+                  ]);
+                }
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-900 hover:bg-slate-800 text-xs text-slate-300 font-mono font-medium transition-all"
+              title="Simulate document edit (for testing)"
+            >
+              <RefreshCw className="w-3.5 h-3.5 text-blue-400" />
+              <span>Simulate Edit</span>
             </button>
 
             <div className="hidden md:flex bg-slate-900/80 px-4 py-2 rounded-xl border border-slate-800/80 flex-col items-center">
