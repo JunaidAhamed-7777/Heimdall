@@ -1,0 +1,6 @@
+{
+  "name": "Heimdall Productivity Companion",
+  "description": "An AI-powered productivity companion that schedules tasks, manages deadlines, maps focus hours, and provides proactive advisor feedback to de-stress your weekly workload.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
