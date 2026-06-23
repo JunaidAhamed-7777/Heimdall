@@ -589,6 +589,7 @@ app.post("/api/analyze-email", async (req, res) => {
     const ai = getGeminiClient();
     const prompt = `
 You are the Heimdall email analysis agent. Analyse the following email content and classify it.
+
 Sender: ${sender}
 Subject: ${subject}
 Date: ${new Date().toLocaleDateString()}
@@ -598,65 +599,50 @@ ${emailText}
 Today's Date: Tuesday, June 23, 2026.
 
 Your task is to:
-1. Classify the email into one of these exact categories:
-   - "CONFIRMED_EVENT": The email states clearly that an event/appointment/booking has been booked, registered, confirmed, scheduled, or finalized. Examples: ticket confirmations, appointment receipts, scheduled flights, workshop registrations, reserved slots. Note that the sender stating they are confirming or have processed a booking makes it confirmed.
-   - "INVITATION_OR_GENERAL": The email invites the user to something (webinar, registration, survey, questions like "are you free next week?"), contains general marketing, or suggests options. It is NOT already booked or confirmed.
-   - "UNRELATED": Personal chats, newsletters, general updates, receipts of products (without an active calendar event), spam, etc.
+1. Classify the email into ONE of these 4 categories:
+   - ACTION_REQUIRED: The email demands some action from the user (e.g., "Please submit your report by Friday", "Review required", "Action needed", "Your input is required").
+   - EVENT_CONFIRMED: The email confirms that an event/appointment/booking has been booked, registered, confirmed, scheduled, or finalized (e.g., ticket confirmations, appointment receipts, flight bookings, workshop registrations). Examples: "Your appointment is confirmed", "Your booking is successful", "Flight departure scheduled".
+   - INFO: The email shares information, updates, or context that does not require immediate action and isn't an event confirmation (e.g., newsletters, interesting articles, general updates, announcements).
+   - IGNORE: The email is unrelated to tasks, events, or useful information (e.g., personal chats, spam, product receipts, social messages, newsletters that aren't helpful).
 
-2. If and ONLY if the classification is "CONFIRMED_EVENT", extract the event details.
-   - event_name: Descriptive title of the event (e.g. "Dentist Appointment", "Flight to Delhi", "AI and Ethics Workshop").
-   - event_date: The date in YYYY-MM-DD format. Check relative date clues in the email body or date header. If the email describes "this Friday" or "next Monday" or "tomorrow", use Today's Date (Tuesday, June 23, 2026) to calculate the exact calendar date:
-     * Today (June 23, 2026) is Tuesday
-     * tomorrow is Wednesday, 2026-06-24
-     * day after tomorrow is Thursday, 2026-06-25
-     * Friday is 2026-06-26
-     * next Monday is 2026-06-29
-   - start_time: Format HH:MM (24-hour style). If only a start time is mentioned (e.g. "at 2:30 PM", "departs 14:30"), convert to HH:MM (e.g., "14:30"). If no time is mentioned, leave blank and set all_day to true.
-   - end_time: Format HH:MM. If start_time is clear but no end time is mentioned, automatically set end_time to 1 hour after start_time.
-   - all_day: Set to true if no specific time is mentioned for the event.
-   - needs_more_info: If you classified the email as "CONFIRMED_EVENT" but cannot find/calculate the critical date, set needs_more_info to true. Otherwise, false.
+2. For the classification, provide a reason explaining your choice.
+3. Include a confidence score (0-100) indicating how sure you are about the classification.
 
-Return a JSON object conforming exactly to this structure:
+Return a JSON object matching this exact schema:
 {
-  "classification": "CONFIRMED_EVENT" | "INVITATION_OR_GENERAL" | "UNRELATED",
-  "event_name": string or null,
-  "event_date": string or null,
-  "start_time": string or null,
-  "end_time": string or null,
-  "all_day": boolean,
-  "needs_more_info": boolean,
-  "missing_critical_info_reason": string or null
+  "classification": "ACTION_REQUIRED" | "EVENT_CONFIRMED" | "INFO" | "IGNORE",
+  "reason": "string explaining why this classification is appropriate",
+  "confidence": number 0-100 representing confidence in the classification
 }
-`;
+
+Examples:
+
+Example 1 - ACTION_REQUIRED:
+Input: "Hi there, please review the attached document and provide feedback by EOD Friday."
+Output: {"classification": "ACTION_REQUIRED", "reason": "Email explicitly requests user action: 'please review...and provide feedback'", "confidence": 95}
+
+Example 2 - EVENT_CONFIRMED:
+Input: "Your dentist appointment is confirmed for Wednesday, June 24 at 2:30 PM"
+Output: {"classification": "EVENT_CONFIRMED", "reason": "Email confirms an appointment that has been finalized", "confidence": 100}
+
+Example 3 - INFO:
+Input: "Hi team, here's the latest research on AI trends this month"
+Output: {"classification": "INFO", "reason": "Email shares informative content without requiring action", "confidence": 98}
+
+Example 4 - IGNORE:
+Input: "Hi John, want to grab coffee sometime?"
+Output: {"classification": "IGNORE", "reason": "Email is a personal social message with no task or event", "confidence": 100}`;
 
     const response = await ai.models.generateContent({
       model: "gemini-3.5-flash",
       contents: prompt,
       config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            classification: {
-              type: Type.STRING,
-              description: "Must be one of: 'CONFIRMED_EVENT', 'INVITATION_OR_GENERAL', 'UNRELATED'"
-            },
-            event_name: { type: Type.STRING },
-            event_date: { type: Type.STRING, description: "YYYY-MM-DD format" },
-            start_time: { type: Type.STRING, description: "HH:MM format" },
-            end_time: { type: Type.STRING, description: "HH:MM format" },
-            all_day: { type: Type.BOOLEAN },
-            needs_more_info: { type: Type.BOOLEAN },
-            missing_critical_info_reason: { type: Type.STRING }
-          },
-          required: ["classification", "all_day", "needs_more_info"]
-        }
+        responseMimeType: "application/json"
       }
     });
 
-    const bodyText = response.text || "{}";
-    const data = JSON.parse(bodyText);
-    res.json(data);
+    const parsedAnalysis = JSON.parse(response.text || "{}");
+    res.json(parsedAnalysis);
   } catch (error: any) {
     console.error("Error in analyze-email:", error);
     res.status(500).json({ error: error.message || "An error occurred during email classification." });
