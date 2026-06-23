@@ -29,7 +29,8 @@ import {
   FileCode,
   Flame,
   Award,
-  TrendingUp
+  TrendingUp,
+  BarChart3
 } from "lucide-react";
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
@@ -213,7 +214,6 @@ export default function App() {
   const [apiError, setApiError] = useState<string | null>(null);
 const [showWeeklyReport, setShowWeeklyReport] = useState<boolean>(false);
 const [weeklyReportOffered, setWeeklyReportOffered] = useState<boolean>(false);
-const [weeklyReportOffered, setWeeklyReportOffered] = useState<boolean>(false);
 
   // --- Gmail Monitoring Integration States ---
   const [gmailToken, setGmailToken] = useState<string | null>(() => {
@@ -303,11 +303,10 @@ const [weeklyReportOffered, setWeeklyReportOffered] = useState<boolean>(false);
   };
 
   // --- Calendar Integration States ---
-  const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: string; start_time: string; end_time: string }> | null>(null);
-  const [calendarSummary, setCalendarSummary] = useState<string | null>(null);
-  const [downloadIcsUrl, setDownloadIcsUrl] = useState<string | null>(null);
-  const [showCalendarModal, setShowCalendarModal] = useState<boolean>(false);
-const [showWeeklyReport, setShowWeeklyReport] = useState<boolean>(false);
+const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: string; start_time: string; end_time: string }> | null>(null);
+   const [calendarSummary, setCalendarSummary] = useState<string | null>(null);
+   const [downloadIcsUrl, setDownloadIcsUrl] = useState<string | null>(null);
+   const [showCalendarModal, setShowCalendarModal] = useState<boolean>(false);
 
   const create_calendar_events = (
     events: Array<{ title: string; day: string; start_time: string; end_time: string }>,
@@ -1595,14 +1594,14 @@ if (data.action && data.action.name && data.action.parameters) {
               onClick={() => {
                 // For demo purposes, simulate an edit the first task with a drive file
                 const taskWithDrive = tasks.find(t => t.driveFileId);
-                if (taskWithDrive && taskWithDrive.task) {
-                  fetch(`/api/simulate-drive-edit`, {
-                    method: "POST",
-                    headers:",
-                    body: JSON.stringify({ taskTitle: taskWithDrive.task })
-                  }).then(async () => {
-                    const response = await fetch(`/api/check-drive-document?taskTitle=${encodeURIComponent(taskWithDrive.task)}`);
-                    const data = await response.json();
+if (taskWithDrive && taskWithDrive.task) {
+                   fetch(`/api/simulate-drive-edit`, {
+                     method: "POST",
+                     headers: { "Content-Type": "application/json" },
+                     body: JSON.stringify({ taskTitle: taskWithDrive.task })
+                   }).then(async () => {
+                     const response = await fetch(`/api/check-drive-document?taskTitle=${encodeURIComponent(taskWithDrive.task)}`);
+                     const data = await response.json();
                     setChatMessages(prev => [
                       ...prev,
                       {
