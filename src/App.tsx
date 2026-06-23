@@ -762,6 +762,85 @@ export default function App() {
     return reports;
   };
 
+  // 4. Detect schedule gaps and match micro-tasks
+  const executeDetectGapsAndNudge = async () => {
+    const parseTimeStr = (tStr: string) => {
+      const parts = tStr.trim().split(":");
+      const h = parseInt(parts[0] || "0", 10);
+      const m = parseInt(parts[1] || "0", 10);
+      return h * 60 + m;
+    };
+
+    const formatMins = (minutes: number): string => {
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      return `${hours.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}`;
+    };
+
+    const scheduleItems = tasks
+      .filter(t => t.time && t.time !== "Unscheduled" && t.time.includes(":") && t.day === simulatedDay)
+      .map(t => {
+        const durMatch = t.duration.match(/(\d+)/);
+        const durationMins = durMatch ? parseInt(durMatch[1], 10) : 30;
+        const startMin = parseTimeStr(t.time);
+        const endMin = startMin + durationMins;
+        return {
+          title: t.task,
+          start_time: t.time,
+          end_time: formatMins(endMin)
+        };
+      });
+
+    const taskPool = tasks
+      .filter(t => !t.completed && t.day === simulatedDay)
+      .map(t => {
+        const durMatch = t.duration.match(/(\d+)/);
+        const durationMins = durMatch ? parseInt(durMatch[1], 10) : 30;
+        return {
+          title: t.task,
+          estimated_duration_minutes: durationMins,
+          priority: t.category === "thesis" || t.category === "presentation" ? "high" : "medium"
+        };
+      });
+
+    const habitsPayload = habits.map(h => ({
+      name: h.name,
+      duration_minutes: h.duration_minutes || 15
+    }));
+
+    try {
+      const res = await fetch("/api/detect-gaps-and-nudge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          schedule: scheduleItems,
+          task_pool: taskPool,
+          habits: habitsPayload,
+          user_preferences: { nudge_enabled: true }
+        })
+      });
+
+      if (!res.ok) {
+        throw new Error(`Gaps service returned status ${res.status}`);
+      }
+
+      const result = await res.json();
+      if (result.nudge_message) {
+        setChatMessages(prev => [
+          ...prev,
+          {
+            id: `msg-nudge-scan-${Date.now()}`,
+            role: "model",
+            content: result.nudge_message,
+            timestamp: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+          }
+        ]);
+      }
+    } catch (err: any) {
+      console.error("Failed to detect gaps and nudge:", err);
+    }
+  };
+
   // Proactive Day Transition audit (runs trigger when user swaps 'Simulate Day')
   const handleProactiveDayTransition = (newDay: string) => {
     const todayDateStr = getSimulatedDate(newDay);
@@ -1117,6 +1196,8 @@ export default function App() {
           executeLogHabit(params.habit_name, params.date);
         } else if (actionName === "check_habit_status") {
           executeCheckHabitStatus(params.days_to_check);
+        } else if (actionName === "detect_gaps_and_nudge") {
+          executeDetectGapsAndNudge();
         }
       }
 
@@ -1284,6 +1365,15 @@ export default function App() {
                 </select>
               </div>
             </div>
+
+            <button
+              onClick={executeDetectGapsAndNudge}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-900 hover:bg-slate-800 text-xs text-slate-300 font-mono font-medium transition-all"
+              title="Scan schedule for gaps and match micro-tasks"
+            >
+              <Zap className="w-3.5 h-3.5 text-amber-400" />
+              <span>Detect Gaps</span>
+            </button>
 
             <div className="hidden md:flex bg-slate-900/80 px-4 py-2 rounded-xl border border-slate-800/80 flex-col items-center">
               <span className="text-[9px] text-slate-500 uppercase font-mono font-bold tracking-wider">Thesis Progress</span>
