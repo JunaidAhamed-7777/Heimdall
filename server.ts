@@ -149,24 +149,28 @@ app.post("/api/chat-advisor", async (req, res) => {
       You have access to the user's active custom habits & streaks:
       ${JSON.stringify(currentHabits, null, 2)}
 
-      Your goals: 1. Address the user's message thoughtfully.
-      2. Under the hood, you can invoke actions via the JSON "action" property depending on the conversation phase:
-      - "suggest_schedule": Use this when recommending or presenting a list of tasks/schedule to the user.
-      - "create_calendar_events": After presenting a schedule, if the user explicitly confirms or expresses approval (e.g., "looks good", "yes", "confirm", "do it"), immediately call "create_calendar_events" with the confirmed events. Do NOT call this automatically without user consent.
-      - "add_habit": When a user agrees to start a brand-new habit or tracker. Parameters: {"habit_name": string, "frequency": string, "preferred_time"?: string, "duration_minutes"?: number}.
-      - "log_habit": When a user says they completed or did a habit today. Parameters: {"habit_name": string, "date"?: string}.
-      - "check_habit_status": Proactively check the list of habits for slips. Parameters: {"days_to_check": number}.
-      - "detect_gaps_and_nudge": Scans today's schedule for free gaps between commitments, finds matching micro-tasks from the user's task list, and returns a nudge message. Parameters: {"schedule": array, "task_pool": array, "habits"?: array, "user_preferences"?: object}.
+Your goals: 1. Address the user's message thoughtfully.
+       2. Under the hood, you can invoke actions via the JSON "action" property depending on the conversation phase:
+       - "suggest_schedule": Use this when recommending or presenting a list of tasks/schedule to the user.
+       - "create_calendar_events": After presenting a schedule, if the user explicitly confirms or expresses approval (e.g., "looks good", "yes", "confirm", "do it"), immediately call "create_calendar_events" with the confirmed events. Do NOT call this automatically without user consent.
+       - "add_habit": When a user agrees to start a brand-new habit or tracker. Parameters: {"habit_name": string, "frequency": string, "preferred_time"?: string, "duration_minutes"?: number}.
+       - "log_habit": When a user says they completed or did a habit today. Parameters: {"habit_name": string, "date"?: string}.
+       - "check_habit_status": Proactively check the list of habits for slips. Parameters: {"days_to_check": number}.
+       - "detect_gaps_and_nudge": Scans today's schedule for free gaps between commitments, finds matching micro-tasks from the user's task list, and returns a nudge message. Parameters: {"schedule": array, "task_pool": array, "habits"?: array, "user_preferences"?: object}.
+       - "register_drive_document": When a user provides a Google Drive file link or ID for a task they mentioned working on. Parameters: {"taskTitle": string, "fileId": string}.
 
-      3. **Onboarding & Setup**: Early in the first conversation, after learning about the user's tasks, ask: "Would you like me to help you build some daily habits? Things like exercise, reading, or meditation can be scheduled just like tasks. What's one small habit you'd like to start?"
-      - When they describe a habit, trigger the "add_habit" action.
+       3. **Onboarding & Setup**: Early in the first conversation, after learning about the user's tasks, ask: "Would you like me to help you build some daily habits? Things like exercise, reading, or meditation can be scheduled just like tasks. What's one small habit you'd like to start?"
+       - When they describe a habit, trigger the "add_habit" action.
 
-      4. **Daily Check-Ins & Nudges**: If the user simulates a morning/new day or asks about habit status, check their habits.
-      - If all habits are on track, give quick positive reinforced celebration.
-      - If a habit has been missed for 2 days: "I noticed you haven't meditated in 2 days. Want me to block 10 minutes this morning to get back on track?"
-      - If a habit has been missed for 3+ days: "You've lost your 12-day meditation streak. Let's restart today — I've already blocked 07:30–07:40 for you. Just confirm and I'll add it to the calendar." Then call "suggest_schedule" or be ready to schedule!
+       4. **Document Monitoring Integration**: When the user mentions working on a document (like a thesis, report, etc.), ask if it's stored in Google Drive. If they agree and provide a link or file ID, use the "register_drive_document" action to track it for progress monitoring.
 
-      5. Always return a valid JSON object matching this schema:
+       5. **Daily Check-Ins & Nudges**: If the user simulates a morning/new day or asks about habit status, check their habits.
+       - If all habits are on track, give quick positive reinforced celebration.
+       - If a habit has been missed for habit has been missed for 2 days: "I noticed you haven't meditated in 2 days. Want me to block 10 minutes this morning to get back on track?"
+       - If a habit has been missed for 3+ days: "You've lost your 12-day meditation streak. Let's restart today — I've already blocked 07:30–07:40 for you. Just confirm and I'll add it to the calendar." Then call "suggest_schedule" or be ready to schedule!
+       - Additionally, during daily check-ins, check registered documents for inactivity (no edits in 2+ days) and issue appropriate nudges.
+
+       6. Always return a valid JSON object matching this schema:
       {
         "advisorResponse": "Your written advice",
         "updatedTasks": [ ... optional list of updated tasks ... ] or null,
@@ -213,13 +217,13 @@ app.post("/api/chat-advisor", async (req, res) => {
                 required: ["id", "day", "time", "task", "duration", "category", "completed", "description"]
               }
             },
-            action: {
-              type: Type.OBJECT,
-              properties: {
-                name: { type: Type.STRING },
-                parameters: { type: Type.OBJECT }
-              }
-            }
+action: {
+               type: Type.OBJECT,
+               properties: {
+                 name: { type: Type.STRING, enum: ["suggest_schedule", "create_calendar_events", "add_habit", "log_habit", "check_habit_status", "detect_gaps_and_nudge", "register_drive_document"] },
+                 parameters: { type: Type.OBJECT }
+               }
+             }
           },
           required: ["advisorResponse"]
         }
@@ -584,6 +588,9 @@ app.post("/api/extract-action-items", async (req, res) => {
 
 // Mock currentTasks array for local preview
 const currentTasksMock: TaskItem[] = [];
+
+// Drive document monitoring storage
+const driveDocs: Record<string, { fileId: string; lastModified: string | null }> = {};
 
 // Helper to classify email and return structured analysis
 async function classifyEmail(fullEmailText: string, from: string, subject: string): Promise<any> {
@@ -988,6 +995,149 @@ app.post("/api/detect-gaps-and-nudge", (req, res) => {
     return res.status(500).json({ error: error.message || "An error occurred while computing schedule gaps." });
   }
 });
+
+// Drive Document Monitoring Endpoints
+
+// POST /api/register-drive-document
+app.post("/api/register-drive-document", (req, res) => {
+  try {
+    const { taskTitle, fileId } = req.body;
+    
+    if (!taskTitle || !fileId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Both taskTitle and fileId are required" 
+      });
+    }
+    
+    // Store in server-side dictionary
+    driveDocs[taskTitle] = { fileId, lastModified: null };
+    
+    res.json({ 
+      success: true, 
+      message: `Registered document for task "${taskTitle}"` 
+    });
+  } catch (error: any) {
+    console.error("Error registering drive document:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || "An error occurred while registering the document" 
+    });
+  }
+});
+
+// GET /api/check-drive-document?taskTitle=...
+app.get("/api/check-drive-document", async (req, res) => {
+  try {
+const { taskTitle } = req.query;
+     
+     if (!taskTitle || typeof taskTitle !== 'string') {
+       return res.status(400).json({ 
+         error: "taskTitle query parameter is required" 
+       });
+     }
+    
+    const docEntry = driveDocs[taskTitle];
+    
+    if (!docEntry) {
+      return res.status(404).json({ 
+        error: `No document registered for task "${taskTitle}"` 
+      });
+    }
+    
+    let lastModified: string | null = null;
+    let daysSinceLastEdit: number;
+    
+    // Check if Google Drive API key is configured
+    if (process.env.GOOGLE_DRIVE_API_KEY) {
+      try {
+        // Call Google Drive API to get file metadata
+        const response = await fetch(
+          `https://www.googleapis.com/drive/v3/files/${docEntry.fileId}?fields=modifiedTime&key=${process.env.GOOGLE_DRIVE_API_KEY}`
+        );
+        
+        if (!response.ok) {
+          throw new Error(`Google Drive API error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        lastModified = data.modifiedTime;
+        
+        // Update our stored lastModified time
+        driveDocs[taskTitle].lastModified = lastModified;
+      } catch (apiError) {
+        console.error("Error calling Google Drive API:", apiError);
+        // Fall back to simulated store if API fails
+        lastModified = docEntry.lastModified;
+      }
+    } else {
+      // Use simulated store
+      lastModified = docEntry.lastModified;
+    }
+    
+    // Calculate days since last edit
+    if (lastModified) {
+      const lastModifiedDate = new Date(lastModified);
+      const now = new Date();
+      const diffTime = Math.abs(now.getTime() - lastModifiedDate.getTime());
+      daysSinceLastEdit = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    } else {
+      // If never modified, set to a large number (e.g., 999 days)
+      daysSinceLastEdit = 999;
+    }
+    
+    res.json({
+      taskTitle,
+      lastModified: lastModified || new Date(0).toISOString(), // Far past date if never set
+      daysSinceLastEdit
+    });
+  } catch (error: any) {
+    console.error("Error checking drive document:", error);
+    res.status(500).json({ 
+      error: error.message || "An error occurred while checking the document" 
+    });
+  }
+});
+
+// POST /api/simulate-drive-edit
+app.post("/api/simulate-drive-edit", (req, res) => {
+  try {
+    const { taskTitle } = req.body;
+    
+    if (!taskTitle || typeof taskTitle !== 'string') {
+      return res.status(400).json({ 
+        success: false, 
+        message: "taskTitle is required" 
+      });
+    }
+    
+    const docEntry = driveDocs[taskTitle];
+    
+    if (!docEntry) {
+      return res.status(404).json({ 
+        success: false, 
+        message: `No document registered for task "${taskTitle}"` 
+      });
+    }
+    
+    // Update last modified time to now
+    const now = new Date().toISOString();
+    driveDocs[taskTitle].lastModified = now;
+    
+    res.json({ 
+      success: true, 
+      lastModified: now 
+    });
+  } catch (error: any) {
+    console.error("Error simulating drive edit:", error);
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || "An error occurred while simulating the edit" 
+    });
+  }
+});
+
+// Configure Vite or Static Production Serve
 
 // Configure Vite or Static Production Serve
 async function initServer() {
