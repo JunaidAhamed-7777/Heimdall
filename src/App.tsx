@@ -35,6 +35,7 @@ import { initializeApp } from "firebase/app";
 import { getAuth, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { TaskItem, ChatMessage, ScheduleBlueprint } from "./types";
 import { INITIAL_TASKS, INITIAL_MOTIF } from "./utils/initialData";
+import WeeklyReport from "./components/WeeklyReport";
 
 // Helper function to generate an ICS calendar content string
 const generateICSFile = (events: Array<{ title: string; day: string; start_time: string; end_time: string }>): string => {
@@ -210,6 +211,9 @@ export default function App() {
   const [showAddForm, setShowAddForm] = useState<boolean>(false);
   const [scheduleAlertVisible, setScheduleAlertVisible] = useState<boolean>(false);
   const [apiError, setApiError] = useState<string | null>(null);
+const [showWeeklyReport, setShowWeeklyReport] = useState<boolean>(false);
+const [weeklyReportOffered, setWeeklyReportOffered] = useState<boolean>(false);
+const [weeklyReportOffered, setWeeklyReportOffered] = useState<boolean>(false);
 
   // --- Gmail Monitoring Integration States ---
   const [gmailToken, setGmailToken] = useState<string | null>(() => {
@@ -303,6 +307,7 @@ export default function App() {
   const [calendarSummary, setCalendarSummary] = useState<string | null>(null);
   const [downloadIcsUrl, setDownloadIcsUrl] = useState<string | null>(null);
   const [showCalendarModal, setShowCalendarModal] = useState<boolean>(false);
+const [showWeeklyReport, setShowWeeklyReport] = useState<boolean>(false);
 
   const create_calendar_events = (
     events: Array<{ title: string; day: string; start_time: string; end_time: string }>,
@@ -1083,8 +1088,29 @@ export default function App() {
        }, 500);
      }
      
-     // Also check drive documents for inactivity
-     executeCheckDriveDocuments();
+// Also check drive documents for inactivity
+      executeCheckDriveDocuments();
+      
+      // Offer weekly report on Sundays if not already offered today
+      if (newDay === "Sunday" && !weeklyReportOffered) {
+        setWeeklyReportOffered(true);
+        setTimeout(() => {
+          setChatMessages(prev => [
+            ...prev,
+            {
+              id: `msg-weekly-report-offer-${Date.now()}`,
+              role: "model",
+              content: "It's the end of the week! Would you like me to generate your weekly productivity report? You can access it by clicking the 'Weekly Report' button in the header.",
+              timestamp: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+            }
+          ]);
+        }, 500);
+      }
+      
+      // Reset the offer flag when it's not Sunday anymore
+      if (newDay !== "Sunday") {
+        setWeeklyReportOffered(false);
+      }
    };
 
 
@@ -1557,13 +1583,22 @@ if (data.action && data.action.name && data.action.parameters) {
             </button>
 
             <button
+              onClick={() => setShowWeeklyReport(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-800 bg-slate-900 hover:bg-slate-800 text-xs text-slate-300 font-mono font-medium transition-all"
+              title="Generate weekly productivity report"
+            >
+              <BarChart3 className="w-3.5 h-3.5 text-purple-400" />
+              <span>Weekly Report</span>
+            </button>
+
+            <button
               onClick={() => {
-                // For demo purposes, simulate an edit on the first task with a drive file
+                // For demo purposes, simulate an edit the first task with a drive file
                 const taskWithDrive = tasks.find(t => t.driveFileId);
                 if (taskWithDrive && taskWithDrive.task) {
                   fetch(`/api/simulate-drive-edit`, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
+                    headers:",
                     body: JSON.stringify({ taskTitle: taskWithDrive.task })
                   }).then(async () => {
                     const response = await fetch(`/api/check-drive-document?taskTitle=${encodeURIComponent(taskWithDrive.task)}`);
@@ -2642,40 +2677,65 @@ if (data.action && data.action.name && data.action.parameters) {
       )}
 
       {/* STREAK MILESTONE BADGE CELEBRATION OVERLAY */}
-      {streakBadgeAlert && (
-        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fadeIn">
-          <div className="bg-slate-900 border border-emerald-500/30 rounded-2xl max-w-sm w-full p-6 text-center space-y-4 shadow-2xl shadow-emerald-500/5">
-            <div className="w-16 h-16 rounded-full bg-emerald-500/10 mx-auto flex items-center justify-center border border-emerald-500/30 shadow-lg animate-bounce">
-              <Award className="w-8 h-8 text-emerald-400" />
-            </div>
-            
-            <div className="space-y-1">
-              <h3 className="text-sm font-bold font-mono text-emerald-400 uppercase tracking-widest">Streak Unlocked!</h3>
-              <p className="text-xl font-bold text-slate-100 font-display">
-                {streakBadgeAlert.habitName}
-              </p>
-            </div>
-
-            <div className="py-2.5 px-4 bg-slate-950/80 border border-slate-800 rounded-xl max-w-[180px] mx-auto flex items-center justify-center gap-2">
-              <Flame className="w-6 h-6 text-amber-500 fill-amber-500/15 animate-pulse" />
-              <span className="text-2xl font-black font-mono text-slate-100">
-                {streakBadgeAlert.streak} Days
-              </span>
-            </div>
-
-            <p className="text-xs text-slate-400 leading-relaxed font-mono">
-              Heimdall has recorded this milestone in your productivity dossier. Consistent execution overcomes all obstacles!
-            </p>
-
-            <button
-              onClick={() => setStreakBadgeAlert(null)}
-              className="w-full bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold font-mono py-2 rounded-xl text-xs uppercase cursor-pointer transition-all"
-            >
-              Continue Execution ⚡
-            </button>
-          </div>
-        </div>
-      )}
+{streakBadgeAlert && (
+         <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fadeIn">
+           <div className="bg-slate-900 border border-emerald-500/30 rounded-2xl max-w-sm w-full p-6 text-center space-y-4 shadow-2xl shadow-emerald-500/5">
+             <div className="w-16 h-16 rounded-full bg-emerald-500/10 mx-auto flex items-center justify-center border border-emerald-500/30 shadow-lg animate-bounce">
+               <Award className="w-8 h-8 text-emerald-400" />
+             </div>
+             
+             <div className="space-y-1">
+               <h3 className="text-sm font-bold font-mono text-emerald-400 uppercase tracking-widest">Streak Unlocked!</h3>
+               <p className="text-xl font-bold text-slate-100 font-display">
+                 {streakBadgeAlert.habitName}
+               </p>
+             </div>
+ 
+             <div className="py-2.5 px-4 bg-slate-950/80 border border-slate-800 rounded-xl max-w-[180px] mx-auto flex items-center justify-center gap-2">
+               <Flame className="w-6 h-6 text-amber-500 fill-amber-500/15 animate-pulse" />
+               <span className="text-2xl font-black font-mono text-slate-100">
+                 {streakBadgeAlert.streak} Days
+               </span>
+             </div>
+ 
+             <p className="text-xs text-slate-400 leading-relaxed font-mono">
+               Heimdall has recorded this milestone in your productivity dossier. Consistent execution overcomes all obstacles!
+             </p>
+ 
+             <button
+               onClick={() => setStreakBadgeAlert(null)}
+               className="w-full bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-bold font-mono py-2 rounded-xl text-xs uppercase cursor-pointer transition-all"
+             >
+               Continue Execution ⚡
+             </button>
+           </div>
+         </div>
+       )}
+       
+       {/* Weekly Report Modal */}
+       {showWeeklyReport && (
+         <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fadeIn">
+           <div className="bg-slate-900 border border-emerald-500/30 rounded-2xl w-full max-w-4xl p-6 space-y-6 shadow-2xl shadow-emerald-500/5">
+             <div className="flex justify-between items-start">
+               <h2 className="text-xl font-bold text-emerald-400">Weekly Productivity Report</h2>
+               <button
+                 onClick={() => setShowWeeklyReport(false)}
+                 className="p-2 hover:bg-slate-800/50 rounded"
+               >
+                 <svg
+                   xmlns="http://www.w3.org/2000/svg"
+                   className="h-5 w-5 text-slate-400 hover:text-white"
+                   viewBox="0 0 20 20"
+                   fill="currentColor"
+                 >
+                   <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 14l-2.293 2.293a1 1 0 01-1.414 0L10 11.586l-2.293 2.293a1 1 0 01-1.414-1.414L10 10.414 7.707 8.121a1 1 0 011.414-1.414L10 9l2.293-2.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                 </svg>
+               </button>
+             </div>
+             <WeeklyReport tasks={tasks} onClose={() => setShowWeeklyReport(false)} />
+           </div>
+         </div>
+       )}
 
     </div>
   );

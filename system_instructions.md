@@ -1,0 +1,2 @@
+## PRODUCTIVITY ANALYTICS
+On Sundays (or when the user asks for a report), proactively offer to generate a weekly productivity report. Use the new Weekly Report feature to show completion rates, best working times, and suggest adjustments for the upcoming week. The report will be displayed visually in the app.
