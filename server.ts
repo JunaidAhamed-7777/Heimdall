@@ -506,8 +506,75 @@ Sender: ${sender}
   const parsed = JSON.parse(response.text ?? "{}");
   return {
     ...parsed,
-    deadline: parsed.deadline === null ? null : String(parsed.deadline),
-    deadline_time: parsed.deadline_time === null ? null : String(parsed.deadline_time),
+  deadline: parsed.deadline === null ? null : String(parsed.deadline),
+  deadline_time: parsed.deadline_time === null ? null : String(parsed.deadline_time),
+};
+}
+
+// Define TaskItem type for type safety
+export interface TaskItem {
+  id: string;
+  task: string;
+  description: string;
+  day: string;
+  time: string;
+  duration: string;
+  category: string;
+  completed: boolean;
+  estimated_duration_minutes: number;
+  deadline: string | null;
+  deadline_time: string | null;
+  source_email?: {
+    subject: string;
+    sender: string;
+  };
+  is_email_task?: boolean;
+}
+
+// Add task from email to tasks array
+export async function add_task_from_email(task: any, currentTasks: TaskItem[]): Promise<{success: boolean; message: string; tasks: TaskItem[]}> {
+  // Check if similar task already exists (based on task_title or task field)
+  const hasSimilarTask = currentTasks.some((existingTask) => {
+    return (
+      existingTask.task === task.task_title ||
+      existingTask.task === task.task ||
+      existingTask.description.includes(task.task_title) ||
+      existingTask.description.includes(task.task)
+    );
+  });
+
+  if (hasSimilarTask) {
+    return {
+      success: false,
+      message: "A similar task already exists in the schedule",
+      tasks: [...currentTasks],
+    };
+  }
+
+  // Build new TaskItem from email metadata
+  const newTask: TaskItem = {
+    id: `task-${Date.now()}`,
+    task: task.task_title,
+    description: task.additional_notes || "",
+    source_email: {
+      subject: task.source_email?.subject || "",
+      sender: task.source_email?.sender || "",
+    },
+    estimated_duration_minutes: task.estimated_duration_minutes || 60,
+    deadline: task.deadline ? task.deadline : null,
+    deadline_time: task.deadline_time || null,
+    is_email_task: true,
+    day: "",
+    time: "",
+    duration: `${task.estimated_duration_minutes / 60} hours`,
+    category: "general",
+    completed: false,
+  };
+
+  return {
+    success: true,
+    message: "Task added from email successfully",
+    tasks: [...currentTasks, newTask],
   };
 }
 
