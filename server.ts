@@ -2,7 +2,7 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
-import dotenv from "dotenv";
+import * as dotenv from "dotenv";
 
 dotenv.config();
 
@@ -663,7 +663,28 @@ Return a JSON object conforming exactly to this structure:
   }
 });
 
-// Endpoint 4: Direct Gmail inbox monitoring scanning
+// Endpoint 4: Extract action items from email
+app.post("/api/extract-action-items", async (req, res) => {
+  try {
+    const { email_subject, email_body, sender } = req.body;
+    if (!email_body) {
+      return res.status(400).json({ error: "Email body is required." });
+    }
+
+    const result = await extract_action_items(
+      email_subject || "No Subject",
+      email_body,
+      sender || "Unknown Sender"
+    );
+
+    res.json(result);
+  } catch (error: any) {
+    console.error("Error extracting action items:", error);
+    res.status(500).json({ error: error.message || "An error occurred while extracting action items." });
+  }
+});
+
+// Endpoint 5: Direct Gmail inbox monitoring scanning
 app.post("/api/check-gmail", async (req, res) => {
   try {
     const { accessToken, processedIds = [] } = req.body;
