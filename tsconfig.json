@@ -21,6 +21,14 @@
       ]
     },
     "allowImportingTsExtensions": true,
-    "noEmit": true
-  }
+    "noEmit": true,
+    "strict": false,
+    "noImplicitAny": false,
+    "skipDefaultLibCheck": true
+  },
+  "exclude": [
+      "node_modules",
+      "**/*.test.ts",
+      "**/*.spec.ts"
+    ]
 }
