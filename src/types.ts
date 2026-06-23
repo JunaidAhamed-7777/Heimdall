@@ -7,6 +7,7 @@ export interface TaskItem {
   category: "thesis" | "presentation" | "appointment" | "break" | "general";
   completed: boolean;
   description: string;
+  driveFileId?: string;
 }
 
 export interface ScheduleBlueprint {
