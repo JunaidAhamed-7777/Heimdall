@@ -368,6 +368,149 @@ function getEmailBody(part: any): string {
   return "";
 }
 
+// Constant for extraction prompt
+const EXTRACTION_PROMPT = `You are the Heimdall action item extraction agent.
+
+Today's Date: Tuesday, June 23, 2026
+
+Task: Extract actionable tasks and deadlines from the provided email.
+
+Provide a JSON response matching this schema:
+{
+  "task_title": "Descriptive title of the task",
+  "deadline": "YYYY-MM-DD format when available (e.g. 2026-06-29)" or null,
+  "deadline_time": "HH:MM format (24-hour) when available" or null,
+  "estimated_duration_minutes": number in minutes,
+  "additional_notes": "Optional freeform notes from email",
+  "needs_more_info": false
+}
+
+Examples:
+1) Email body includes: "Please review the attached spec by Thursday COB"
+   -> deadline="2026-06-25", deadline_time=null, estimated_duration_minutes=30
+
+2) Email body includes: "Sync call at 2:30 PM tomorrow for 45 minutes"
+   -> deadline="2026-06-24", deadline_time="14:30", estimated_duration_minutes=45
+
+Return only valid JSON conforming to the above schema.`;
+
+// Helper to parse date from text using relative keywords
+function parseDateFromText(text?: string): { date?: string; needsMoreInfo?: boolean } {
+  if (!text) return {};
+
+  const base = new Date("2026-06-23"); // Tuesday
+
+  const dayMap: Record<string, number> = {
+    today: 0,
+    tomorrow: 1,
+    "day after tomorrow": 2,
+    "this friday": 3,
+    friday: 3,
+    "next monday": 6,
+    "next tuesday": 7,
+    monday: 7,
+    tuesday: 0,
+    wednesday: 1,
+    thursday: 2,
+    saturday: 4,
+    sunday: 5,
+  };
+
+  const lower = text.toLowerCase();
+
+  let delta = 0;
+
+  for (const [phrase, d] of Object.entries(dayMap)) {
+    if (lower.includes(phrase)) {
+      delta = d;
+      break;
+    }
+  }
+
+  if (delta !== undefined) {
+    const next = new Date(base);
+    next.setDate(base.getDate() + delta);
+    return { date: next.toISOString().split("T")[0], needsMoreInfo: false };
+  }
+
+  // Try to match YYYY-MM-DD (loose)
+  const isoMatch = /\b(\d{4})[-/](\d{2})[-/](\d{2})\b/.exec(text);
+  if (isoMatch) return { date: `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`, needsMoreInfo: false };
+
+  return { needsMoreInfo: true };
+}
+
+// Helper to parse minutes from text
+function parseMinutesFromText(text?: string): number {
+  if (!text) return 30; // default reasonable duration
+
+  const patterns = [
+    /(\d+)\s*(?:minute|min|mins?)\b/i,
+    /(\d+)\s*(?:hour|hr|h)\b.*(\d+)\s*(?:minute|min)/i,
+    /about\s+(\d+)/i,
+  ];
+
+  for (const rx of patterns) {
+    const match = rx.exec(text);
+    if (match) return parseInt(match[1], 10);
+  }
+
+  return 30;
+}
+
+// Implement extract_action_items function
+export async function extract_action_items(email_subject: string, email_body: string, sender: string): Promise<{
+  task_title: string;
+  deadline: string | null;
+  deadline_time: string | null;
+  estimated_duration_minutes: number;
+  source_email: { subject: string; sender: string };
+  additional_notes?: string;
+}> {
+  const ai = getGeminiClient();
+
+  const prompt = `
+${EXTRACTION_PROMPT}
+
+Email Subject: ${email_subject}
+Email Body: ${email_body}
+Sender: ${sender}
+`;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-3.5-flash",
+    contents: prompt,
+    config: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          task_title: { type: Type.STRING },
+          deadline: { type: Type.STRING },
+          deadline_time: { type: Type.STRING },
+          estimated_duration_minutes: { type: Type.NUMBER },
+          source_email: {
+            type: Type.OBJECT,
+            properties: {
+              subject: { type: Type.STRING },
+              sender: { type: Type.STRING },
+            },
+          },
+          additional_notes: { type: Type.STRING },
+        },
+        required: ["task_title", "deadline", "deadline_time", "estimated_duration_minutes", "source_email"],
+      },
+    },
+  });
+
+  const parsed = JSON.parse(response.text ?? "{}");
+  return {
+    ...parsed,
+    deadline: parsed.deadline === null ? null : String(parsed.deadline),
+    deadline_time: parsed.deadline_time === null ? null : String(parsed.deadline_time),
+  };
+}
+
 // Endpoint 3: Analyze raw email (fallback simulation pasted by the user)
 app.post("/api/analyze-email", async (req, res) => {
   try {
