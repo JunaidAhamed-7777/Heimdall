@@ -156,6 +156,7 @@ app.post("/api/chat-advisor", async (req, res) => {
       - "add_habit": When a user agrees to start a brand-new habit or tracker. Parameters: {"habit_name": string, "frequency": string, "preferred_time"?: string, "duration_minutes"?: number}.
       - "log_habit": When a user says they completed or did a habit today. Parameters: {"habit_name": string, "date"?: string}.
       - "check_habit_status": Proactively check the list of habits for slips. Parameters: {"days_to_check": number}.
+      - "detect_gaps_and_nudge": Scans today's schedule for free gaps between commitments, finds matching micro-tasks from the user's task list, and returns a nudge message. Parameters: {"schedule": array, "task_pool": array, "habits"?: array, "user_preferences"?: object}.
 
       3. **Onboarding & Setup**: Early in the first conversation, after learning about the user's tasks, ask: "Would you like me to help you build some daily habits? Things like exercise, reading, or meditation can be scheduled just like tasks. What's one small habit you'd like to start?"
       - When they describe a habit, trigger the "add_habit" action.
@@ -170,7 +171,7 @@ app.post("/api/chat-advisor", async (req, res) => {
         "advisorResponse": "Your written advice",
         "updatedTasks": [ ... optional list of updated tasks ... ] or null,
         "action": {
-          "name": "suggest_schedule" | "create_calendar_events" | "add_habit" | "log_habit" | "check_habit_status",
+          "name": "suggest_schedule" | "create_calendar_events" | "add_habit" | "log_habit" | "check_habit_status" | "detect_gaps_and_nudge",
           "parameters": { ... }
         } or null
       }
@@ -738,6 +739,252 @@ app.post("/api/check-gmail", async (req, res) => {
   } catch (error: any) {
     console.error("Error in check-gmail endpoint:", error);
     res.status(500).json({ error: error.message || "An error occurred while scanning your inbox." });
+  }
+});
+
+// Helper to parse times like "09:00", "9:00 AM", "2:30 PM", "14:30"
+function parseTime(timeStr: string): number {
+  if (!timeStr) return 0;
+  const clean = timeStr.trim().toLowerCase();
+  
+  // Try matching HH:MM format with optional AM/PM
+  const match = clean.match(/(\d+):(\d+)\s*(am|pm)?/);
+  if (match) {
+    let hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    const meridiem = match[3];
+    
+    if (meridiem === "pm" && hours < 12) {
+      hours += 12;
+    } else if (meridiem === "am" && hours === 12) {
+      hours = 0;
+    }
+    return hours * 60 + minutes;
+  }
+  
+  // Try matching just hours like "9 AM" or "14"
+  const hourMatch = clean.match(/(\d+)\s*(am|pm)?/);
+  if (hourMatch) {
+    let hours = parseInt(hourMatch[1], 10);
+    const meridiem = hourMatch[2];
+    if (meridiem === "pm" && hours < 12) {
+      hours += 12;
+    } else if (meridiem === "am" && hours === 12) {
+      hours = 0;
+    }
+    return hours * 60;
+  }
+  
+  return 0;
+}
+
+// Convert minutes from midnight back to 24-hour time HH:MM format
+function formatMinutes(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return `${hours.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}`;
+}
+
+export function computeGapsAndNudge(
+  schedule: Array<{ title: string; start_time: string; end_time: string }>,
+  task_pool: Array<{ title: string; estimated_duration_minutes?: number; priority?: string }>,
+  habits?: Array<{ name: string; duration_minutes: number }>,
+  user_preferences?: { nudge_enabled?: boolean; decline_count_today?: number }
+) {
+  // Respect preference
+  if (user_preferences?.nudge_enabled === false) {
+    return {
+      nudge_message: "Nudges are currently disabled per your preferences.",
+      gaps: [],
+      suggested_task: null
+    };
+  }
+
+  // Parse events into minutes
+  const events = schedule
+    .map(event => {
+      const start = parseTime(event.start_time);
+      const end = parseTime(event.end_time);
+      return {
+        title: event.title,
+        start,
+        end,
+        original_start: event.start_time,
+        original_end: event.end_time
+      };
+    })
+    .filter(e => e.end > e.start)
+    .sort((a, b) => a.start - b.start);
+
+  // Standard waking hours: 08:00 (480 mins) to 20:00 (1200 mins)
+  const DAY_START = 8 * 60;
+  const DAY_END = 20 * 60;
+
+  // Find busy intervals
+  const busyPeriods: Array<{ start: number; end: number; titles: string[] }> = [];
+  for (const e of events) {
+    if (busyPeriods.length === 0) {
+      busyPeriods.push({ start: e.start, end: e.end, titles: [e.title] });
+    } else {
+      const last = busyPeriods[busyPeriods.length - 1];
+      if (e.start < last.end) {
+        // Overlap, merge them
+        last.end = Math.max(last.end, e.end);
+        last.titles.push(e.title);
+      } else {
+        busyPeriods.push({ start: e.start, end: e.end, titles: [e.title] });
+      }
+    }
+  }
+
+  // Find gaps in waking hours
+  const gaps: Array<{ start: number; end: number; duration_minutes: number; before?: string; after?: string }> = [];
+  
+  if (busyPeriods.length === 0) {
+    // If no events, the whole day is a gap!
+    gaps.push({
+      start: DAY_START,
+      end: DAY_END,
+      duration_minutes: DAY_END - DAY_START,
+      before: "Start of Day",
+      after: "End of Day"
+    });
+  } else {
+    // Gap before the first event
+    if (busyPeriods[0].start > DAY_START) {
+      gaps.push({
+        start: DAY_START,
+        end: busyPeriods[0].start,
+        duration_minutes: busyPeriods[0].start - DAY_START,
+        before: "Start of Day",
+        after: busyPeriods[0].titles.join(" / ")
+      });
+    }
+
+    // Gaps between consecutive events
+    for (let i = 0; i < busyPeriods.length - 1; i++) {
+      const start = busyPeriods[i].end;
+      const end = busyPeriods[i + 1].start;
+      if (end - start >= 10) { // Gap must be at least 10 minutes
+        gaps.push({
+          start,
+          end,
+          duration_minutes: end - start,
+          before: busyPeriods[i].titles.join(" / "),
+          after: busyPeriods[i + 1].titles.join(" / ")
+        });
+      }
+    }
+
+    // Gap after the last event
+    const last = busyPeriods[busyPeriods.length - 1];
+    if (DAY_END > last.end) {
+      gaps.push({
+        start: last.end,
+        end: DAY_END,
+        duration_minutes: DAY_END - last.end,
+        before: last.titles.join(" / "),
+        after: "End of Day"
+      });
+    }
+  }
+
+  // Let's match tasks
+  // Combine custom tasks with habits if available (prioritizing tasks, then habits)
+  const pool = [
+    ...task_pool.map(t => ({
+      title: t.title,
+      duration: t.estimated_duration_minutes || 30,
+      priority: t.priority || "medium",
+      is_habit: false
+    })),
+    ...(habits || []).map(h => ({
+      title: h.name,
+      duration: h.duration_minutes || 15,
+      priority: "medium",
+      is_habit: true
+    }))
+  ];
+
+  // Look for a perfect fit
+  let bestGap: any = null;
+  let bestTask: any = null;
+
+  for (const gap of gaps) {
+    const matchingTasks = pool.filter(t => t.duration <= gap.duration_minutes);
+    if (matchingTasks.length > 0) {
+      // Sort matching tasks: High priority first, then closer fit in duration
+      matchingTasks.sort((a, b) => {
+        const ap = a.priority === "high" ? 3 : a.priority === "low" ? 1 : 2;
+        const bp = b.priority === "high" ? 3 : b.priority === "low" ? 1 : 2;
+        if (ap !== bp) return bp - ap;
+        return Math.abs(a.duration - gap.duration_minutes) - Math.abs(b.duration - gap.duration_minutes);
+      });
+      bestGap = gap;
+      bestTask = matchingTasks[0];
+      break;
+    }
+  }
+
+  let nudge_message = "";
+  if (bestGap && bestTask) {
+    const startTimeStr = formatMinutes(bestGap.start);
+    const endTimeStr = formatMinutes(bestGap.end);
+    if (bestTask.is_habit) {
+      nudge_message = `Heimdall Nudge: I noticed a ${bestGap.duration_minutes}-minute slot between "${bestGap.before}" and "${bestGap.after}" (from ${startTimeStr} to ${endTimeStr}). This is a golden opportunity to complete your daily "${bestTask.title}" habit (${bestTask.duration} mins)! Shall we lock it in?`;
+    } else {
+      nudge_message = `Heimdall Nudge: I've spotted a free ${bestGap.duration_minutes}-minute gap from ${startTimeStr} to ${endTimeStr} (between "${bestGap.before}" and "${bestGap.after}"). It fits your "${bestTask.title}" task perfectly (${bestTask.duration} mins). Let's maximize this window to keep your momentum going!`;
+    }
+  } else if (gaps.length > 0) {
+    // We have gaps but no tasks fit, or pool is empty
+    const largestGap = [...gaps].sort((a, b) => b.duration_minutes - a.duration_minutes)[0];
+    const startTimeStr = formatMinutes(largestGap.start);
+    const endTimeStr = formatMinutes(largestGap.end);
+    nudge_message = `Heimdall Nudge: You have a clear ${largestGap.duration_minutes}-minute block from ${startTimeStr} to ${endTimeStr}. Perfect time to step away, rest, reset, or work on whatever feels right right now.`;
+  } else {
+    nudge_message = "Heimdall Nudge: Your day is fully optimized with back-to-back blocks. Focus on executing each segment with absolute precision, and remember to check them off once completed!";
+  }
+
+  return {
+    nudge_message,
+    gaps: gaps.map(g => ({
+      start_time: formatMinutes(g.start),
+      end_time: formatMinutes(g.end),
+      duration_minutes: g.duration_minutes,
+      before: g.before,
+      after: g.after
+    })),
+    suggested_task: bestTask ? {
+      title: bestTask.title,
+      duration_minutes: bestTask.duration,
+      priority: bestTask.priority,
+      is_habit: bestTask.is_habit
+    } : null,
+    suggested_gap: bestGap ? {
+      start_time: formatMinutes(bestGap.start),
+      end_time: formatMinutes(bestGap.end),
+      duration_minutes: bestGap.duration_minutes,
+      before: bestGap.before,
+      after: bestGap.after
+    } : null
+  };
+}
+
+// Endpoint 6: Detect gaps and nudge
+app.post("/api/detect-gaps-and-nudge", (req, res) => {
+  try {
+    const { schedule = [], task_pool = [], habits = [], user_preferences = {} } = req.body;
+    
+    // Explicit schema parameter check as per instructions
+    if (!req.body || (req.body.schedule === undefined && req.body.task_pool === undefined)) {
+      return res.status(400).json({ error: "Missing required properties: 'schedule' and/or 'task_pool'" });
+    }
+
+    const result = computeGapsAndNudge(schedule, task_pool, habits, user_preferences);
+    return res.json(result);
+  } catch (error: any) {
+    console.error("Error in detect-gaps-and-nudge:", error);
+    return res.status(500).json({ error: error.message || "An error occurred while computing schedule gaps." });
   }
 });
 
