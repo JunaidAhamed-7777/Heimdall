@@ -37,6 +37,7 @@ import { getAuth, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { TaskItem, ChatMessage, ScheduleBlueprint } from "./types";
 import { INITIAL_TASKS, INITIAL_MOTIF } from "./utils/initialData";
 import WeeklyReport from "./components/WeeklyReport";
+import logo from "../logo.png";
 
 // Helper function to generate an ICS calendar content string
 const generateICSFile = (events: Array<{ title: string; day: string; start_time: string; end_time: string }>): string => {
@@ -1482,9 +1483,7 @@ if (data.action && data.action.name && data.action.parameters) {
       <aside className="w-20 bg-slate-900/90 border-r border-slate-800/80 flex flex-col items-center py-8 justify-between shrink-0">
         <div className="flex flex-col items-center space-y-8">
           {/* Logo Brand Accent */}
-          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center font-bold text-slate-950 text-xl shadow-lg shadow-emerald-500/20 tracking-tighter">
-            H
-          </div>
+          <img src={logo} alt="Heimdall" className="h-8 w-8" />
           
           <nav className="flex flex-col space-y-5">
             <button
