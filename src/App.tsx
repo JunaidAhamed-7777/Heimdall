@@ -2713,24 +2713,14 @@ if (taskWithDrive && taskWithDrive.task) {
        
        {/* Weekly Report Modal */}
        {showWeeklyReport && (
-         <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fadeIn">
-           <div className="bg-slate-900 border border-emerald-500/30 rounded-2xl w-full max-w-4xl p-6 space-y-6 shadow-2xl shadow-emerald-500/5">
-             <div className="flex justify-between items-start">
-               <h2 className="text-xl font-bold text-emerald-400">Weekly Productivity Report</h2>
-               <button
-                 onClick={() => setShowWeeklyReport(false)}
-                 className="p-2 hover:bg-slate-800/50 rounded"
-               >
-                 <svg
-                   xmlns="http://www.w3.org/2000/svg"
-                   className="h-5 w-5 text-slate-400 hover:text-white"
-                   viewBox="0 0 20 20"
-                   fill="currentColor"
-                 >
-                   <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 14l-2.293 2.293a1 1 0 01-1.414 0L10 11.586l-2.293 2.293a1 1 0 01-1.414-1.414L10 10.414 7.707 8.121a1 1 0 011.414-1.414L10 9l2.293-2.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                 </svg>
-               </button>
-             </div>
+         <div 
+           onClick={() => setShowWeeklyReport(false)}
+           className="fixed inset-0 bg-slate-950/85 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fadeIn overflow-y-auto cursor-pointer"
+         >
+           <div 
+             onClick={(e) => e.stopPropagation()}
+             className="bg-slate-900 border border-emerald-500/30 rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto p-2 shadow-2xl shadow-emerald-500/5 my-auto cursor-default"
+           >
              <WeeklyReport tasks={tasks} onClose={() => setShowWeeklyReport(false)} />
            </div>
          </div>
