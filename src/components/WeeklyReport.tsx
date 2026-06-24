@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { X } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -153,16 +154,10 @@ const WeeklyReport: React.FC<WeeklyReportProps> = ({ tasks, onClose }) => {
         </h2>
         <button
           onClick={onClose}
-          className="p-2 hover:bg-slate-800/50 rounded"
+          className="p-2 hover:bg-slate-800/50 rounded transition-colors cursor-pointer"
+          title="Close report"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-5 w-5 text-slate-400 hover:text-white"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 14e6" clipRule="evenodd" />
-          </svg>
+          <X className="w-5 h-5 text-slate-400 hover:text-white" />
         </button>
       </div>
 
@@ -208,7 +203,7 @@ const WeeklyReport: React.FC<WeeklyReportProps> = ({ tasks, onClose }) => {
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <ResponsiveContainer width="100%" height={300}>
+            <ResponsiveContainer width="100%" height={180}>
               <PieChart>
                 <Pie
                   data={categoryBreakdown}
@@ -216,8 +211,8 @@ const WeeklyReport: React.FC<WeeklyReportProps> = ({ tasks, onClose }) => {
                   nameKey="category"
                   cx="50%"
                   cy="50%"
-                  innerRadius={60}
-                  outerRadius={120}
+                  innerRadius={35}
+                  outerRadius={70}
                   labelLine={false}
                   label={({ name, percent }) => (
                     <>
@@ -241,8 +236,8 @@ const WeeklyReport: React.FC<WeeklyReportProps> = ({ tasks, onClose }) => {
                   className={`w-3 h-3 rounded bg-[hsl(${index * 30},70%,50%)]`}
                 />
                 <div>
-                  <p className="font-medium text-white">{cat.category}</p>
-                  <p className="text-slate-400 text-sm">
+                  <p className="font-medium text-white text-xs">{cat.category}</p>
+                  <p className="text-slate-400 text-[11px]">
                     {cat.completed}/{cat.total} tasks ({cat.completionRate.toFixed(
                       0
                     )}%)
@@ -255,17 +250,17 @@ const WeeklyReport: React.FC<WeeklyReportProps> = ({ tasks, onClose }) => {
       </div>
 
       {/* Daily Pattern (Bar Chart) */}
-      <div className="mb-8">
-        <h3 className="text-lg font-semibold mb-4 text-emerald-300">
+      <div className="mb-6">
+        <h3 className="text-base font-semibold mb-3 text-emerald-300">
           Daily Productivity Pattern
         </h3>
-        <ResponsiveContainer width="100%" height={300}>
+        <ResponsiveContainer width="100%" height={180}>
           <BarChart data={dailyPattern}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="day" tick={{ fill: "#9ca3af" }} />
-            <YAxis tick={{ fill: "#9ca3af" }} />
+            <XAxis dataKey="day" tick={{ fill: "#9ca3af", fontSize: 11 }} />
+            <YAxis tick={{ fill: "#9ca3af", fontSize: 11 }} />
             <Tooltip />
-            <Legend verticalAlign="top" height={36} />
+            <Legend verticalAlign="top" height={28} wrapperStyle={{ fontSize: 11 }} />
             <Bar dataKey="tasksCompleted" fill="#10b981" name="Tasks Completed" />
             <Bar
               dataKey="productivityScore"
