@@ -187,10 +187,10 @@ const WeeklyReport: React.FC<WeeklyReportProps> = ({ tasks, onClose }) => {
           <div className="bg-slate-800/50 p-4 rounded">
             <p className="text-slate-400 text-sm">Trend</p>
             <p className="text-2xl font-bold">
-              {overview.productivityTrend === "increasing" && (
+              {overview.productivityTrend === "improving" && (
                 <span className="text-emerald-400">↑ Improving</span>
               )}
-              {overview.productivityTrend === "decreasing" && (
+              {overview.productivityTrend === "declining" && (
                 <span className="text-rose-400">↓ Declining</span>
               )}
               {overview.productivityTrend === "stable" && (
