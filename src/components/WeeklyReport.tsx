@@ -103,8 +103,8 @@ const WeeklyReport: React.FC<WeeklyReportProps> = ({ tasks, onClose }) => {
 
   if (loading && !insightsData) {
     return (
-      <div className="p-6 text-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
+      <div className="p-6 text-center flex flex-col items-center justify-center">
+        <img src={logo} alt="Loading..." className="logo-flash h-12 w-12" />
         <p className="mt-4 text-slate-300">Generating insights...</p>
       </div>
     );
