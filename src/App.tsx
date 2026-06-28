@@ -44,6 +44,7 @@ import AgendaTab from "./components/AgendaTab";
 import ActionsTab from "./components/ActionsTab";
 import AdvisorTab from "./components/AdvisorTab";
 import MobileBottomNav from "./components/MobileBottomNav";
+import ConfirmModal from "./components/ConfirmModal";
 
 // Helper function to generate an ICS calendar content string
 const generateICSFile = (events: Array<{ title: string; day: string; start_time: string; end_time: string }>): string => {
@@ -222,6 +223,11 @@ export default function App() {
 const [showWeeklyReport, setShowWeeklyReport] = useState<boolean>(false);
 const [activeTab, setActiveTab] = useState<string>("agenda");
 const [weeklyReportOffered, setWeeklyReportOffered] = useState<boolean>(false);
+const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; itemName: string; onConfirm: (() => void) | null }>({
+  isOpen: false,
+  itemName: "",
+  onConfirm: null,
+});
 
   // --- Gmail Monitoring Integration States ---
   const [gmailToken, setGmailToken] = useState<string | null>(() => {
@@ -1182,9 +1188,27 @@ const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: s
   };
 
   const handleDeleteTask = (taskId: string) => {
-    if (safeConfirm("Are you sure you want to remove this task block from your plan?")) {
-      setTasks((prev) => prev.filter((t) => t.id !== taskId));
-    }
+    const task = tasks.find((t) => t.id === taskId);
+    if (!task) return;
+    setConfirmModal({
+      isOpen: true,
+      itemName: task.task,
+      onConfirm: () => {
+        setTasks((prev) => prev.filter((t) => t.id !== taskId));
+      },
+    });
+  };
+
+  const handleDeleteHabit = (habitId: string) => {
+    const habit = habits.find((h) => h.id === habitId);
+    if (!habit) return;
+    setConfirmModal({
+      isOpen: true,
+      itemName: habit.name,
+      onConfirm: () => {
+        setHabits((prev) => prev.filter((h) => h.id !== habitId));
+      },
+    });
   };
 
   const handleResetSchedule = () => {
@@ -1505,7 +1529,7 @@ if (data.action && data.action.name && data.action.parameters) {
             habits={habits}
             onAddHabit={executeAddHabit}
             onLogHabit={executeLogHabit}
-            onRemoveHabit={(id) => setHabits(prev => prev.filter(h => h.id !== id))}
+            onRemoveHabit={handleDeleteHabit}
             onRegenerateSchedule={(prompt) => handleAIGenerateSchedule({ preventDefault: () => {} } as React.FormEvent)}
           />
         )}
@@ -1600,6 +1624,12 @@ if (data.action && data.action.name && data.action.parameters) {
           </div>
         </div>
       </footer>
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        itemName={confirmModal.itemName}
+        onClose={() => setConfirmModal({ isOpen: false, itemName: "", onConfirm: null })}
+        onConfirm={confirmModal.onConfirm || (() => {})}
+      />
     </div>
   );
 }
