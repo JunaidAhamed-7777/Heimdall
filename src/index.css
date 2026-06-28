@@ -79,37 +79,37 @@
   --radius-xl: 0.5rem;
   --radius-full: 0.75rem;
 
-  /* Spacing tokens – tighter, more compact */
-  --spacing-stack-lg: 24px;
-  --spacing-stack-md: 12px;
-  --spacing-gutter: 12px;
-  --spacing-stack-sm: 6px;
-  --spacing-container-padding: 16px;
-  --spacing-unit: 3px;
+    /* Spacing tokens – 25% smaller than the previous compact values */
+  --spacing-stack-lg: 18px;      /* was 24px */
+  --spacing-stack-md: 9px;       /* was 12px */
+  --spacing-gutter: 9px;         /* was 12px */
+  --spacing-stack-sm: 4px;       /* was 6px */
+  --spacing-container-padding: 12px; /* was 16px */
+  --spacing-unit: 2px;           /* was 3px */
 
-  /* Font sizes – slightly smaller for a refined, professional density */
-  --font-size-headline-md: 32px;        /* keep sidebar branding */
+  /* Font sizes – 25% smaller (except branding) */
+  --font-size-headline-md: 32px;          /* kept for sidebar logo */
   --line-height-headline-md: 40px;
   --font-weight-headline-md: 600;
-  --font-size-label-caps: 12px;         /* keep sidebar labels */
+  --font-size-label-caps: 12px;           /* kept for sidebar labels */
   --line-height-label-caps: 16px;
   --letter-spacing-label-caps: 0.1em;
   --font-weight-label-caps: 600;
-  --font-size-body-lg: 16px;            /* was 18px */
-  --line-height-body-lg: 24px;
+  --font-size-body-lg: 12px;              /* was 16px */
+  --line-height-body-lg: 18px;
   --font-weight-body-lg: 400;
-  --font-size-body-md: 14px;            /* was 16px */
-  --line-height-body-md: 20px;
+  --font-size-body-md: 11px;              /* was 14px */
+  --line-height-body-md: 16px;
   --font-weight-body-md: 400;
-  --font-size-display-lg: 48px;         /* rarely used, leave as is */
+  --font-size-display-lg: 48px;           /* rarely used, leave as is */
   --line-height-display-lg: 56px;
   --letter-spacing-display-lg: -0.02em;
   --font-weight-display-lg: 700;
-  --font-size-headline-sm: 20px;        /* was 24px (slightly smaller) */
-  --line-height-headline-sm: 28px;
+  --font-size-headline-sm: 15px;          /* was 20px */
+  --line-height-headline-sm: 22px;
   --font-weight-headline-sm: 600;
-  --font-size-headline-md-mobile: 24px; /* was 28px */
-  --line-height-headline-md-mobile: 32px;
+  --font-size-headline-md-mobile: 18px;   /* was 24px */
+  --line-height-headline-md-mobile: 26px;
   --font-weight-headline-md-mobile: 600;
 }
 
