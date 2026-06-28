@@ -20,7 +20,7 @@ export default function AdvisorTab({
   onQuickPrompt
 }: AdvisorTabProps) {
   return (
-    <section className="h-[calc(100vh-12rem)]">
+    <section className="h-[calc(100vh-10rem)]">
       <div className="max-w-4xl mx-auto h-full flex flex-col bg-surface-container border border-outline-variant overflow-hidden">
         {/* Header */}
         <div className="p-6 border-b border-outline-variant bg-surface flex justify-between items-center">
@@ -97,7 +97,7 @@ export default function AdvisorTab({
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
               placeholder="Direct the Sentinel..."
-              className="w-full bg-surface-container-low border border-outline-variant p-4 pr-16 focus:border-primary outline-none text-on-surface font-body-md resize-none h-24 custom-scrollbar"
+              className="w-full bg-surface-container-low border border-outline-variant p-4 pr-16 focus:border-primary outline-none text-on-surface font-body-md resize-none h-14 custom-scrollbar"
             />
             <button type="submit" disabled={isLoadingAdvisor} className="absolute bottom-4 right-4 w-10 h-10 bg-primary text-on-primary flex items-center justify-center hover:bg-primary-container transition-all">
               <Send className="w-5 h-5" />
