@@ -33,3 +33,33 @@ body {
 ::-webkit-scrollbar-thumb {
   @apply bg-slate-700 rounded hover:bg-slate-500 transition-colors;
 }
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+}
+
+.runic-pattern {
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0l10 20-10 20-10-20z' fill='%23d4af37' fill-opacity='0.02'/%3E%3C/svg%3E");
+}
+
+.gold-glow:hover {
+  box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
+  border-color: #f2ca50;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #061422;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #4d4635;
+}
+
+.tab-content {
+  display: none;
+}
+.tab-content.active {
+  display: block;
+}
