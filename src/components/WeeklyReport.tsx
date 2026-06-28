@@ -148,17 +148,17 @@ const WeeklyReport: React.FC<WeeklyReportProps> = ({ tasks, onClose }) => {
   } = insightsData;
 
   return (
-    <div className="w-full max-w-4xl mx-auto p-6 bg-slate-900/50 rounded-lg">
-      <div className="flex justify-between items-start mb-6">
-        <h2 className="text-2xl font-bold text-emerald-400">
+    <div className="w-full p-4 bg-transparent rounded-lg text-sm">
+      <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-800">
+        <h2 className="text-lg font-bold text-emerald-400 flex items-center gap-2">
           Weekly Productivity Insights
         </h2>
         <button
           onClick={onClose}
-          className="p-2 hover:bg-slate-800/50 rounded transition-colors cursor-pointer"
+          className="p-1.5 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer text-slate-400 hover:text-white"
           title="Close report"
         >
-          <X className="w-5 h-5 text-slate-400 hover:text-white" />
+          <X className="w-5 h-5" />
         </button>
       </div>
 

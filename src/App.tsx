@@ -2718,7 +2718,7 @@ if (taskWithDrive && taskWithDrive.task) {
          >
            <div 
              onClick={(e) => e.stopPropagation()}
-             className="bg-slate-900 border border-emerald-500/30 rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto p-2 shadow-2xl shadow-emerald-500/5 my-auto cursor-default"
+             className="bg-slate-900 border border-emerald-500/30 rounded-2xl w-full max-w-xl max-h-[80vh] overflow-y-auto p-4 shadow-2xl shadow-emerald-500/5 my-auto cursor-default"
            >
              <WeeklyReport tasks={tasks} onClose={() => setShowWeeklyReport(false)} />
            </div>

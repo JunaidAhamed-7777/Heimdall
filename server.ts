@@ -590,7 +590,12 @@ app.post("/api/extract-action-items", async (req, res) => {
 const currentTasksMock: TaskItem[] = [];
 
 // Drive document monitoring storage
-const driveDocs: Record<string, { fileId: string; lastModified: string | null }> = {};
+const driveDocs: Record<string, { fileId: string; lastModified: string | null }> = {
+  "Thesis: Literature Review & Background": {
+    fileId: "file-thesis-lit-rev",
+    lastModified: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
+  }
+};
 
 // Helper to classify email and return structured analysis
 async function classifyEmail(fullEmailText: string, from: string, subject: string): Promise<any> {

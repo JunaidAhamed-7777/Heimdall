@@ -21,6 +21,7 @@ export const INITIAL_TASKS: TaskItem[] = [
     duration: "2.5 hours",
     category: "thesis",
     completed: false,
+    driveFileId: "file-thesis-lit-rev",
     description: "Draft background research, historical context, and synthesize previous literature."
   },
   {
