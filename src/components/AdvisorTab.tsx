@@ -74,29 +74,13 @@ export default function AdvisorTab({
           )}
         </div>
 
-        {/* Quick prompts */}
-        <div className="p-4 bg-surface border-t border-outline-variant">
-          <p className="text-[9px] font-mono font-bold text-on-surface-variant uppercase tracking-widest mb-2.5">Advisor Shortcuts</p>
-          <div className="flex flex-wrap gap-2">
-            <button onClick={() => onQuickPrompt("I missed Wednesday's methodology section. Move it to Thursday morning.")} className="text-[10px] font-mono bg-surface-container border border-outline-variant hover:border-primary px-2.5 py-1.5 rounded-lg text-on-surface transition-all">
-              ⚡ "Missed methodology, push to Thurs"
-            </button>
-            <button onClick={() => onQuickPrompt("I focus best on Thursday mornings. Let's make sure the biggest section is then.")} className="text-[10px] font-mono bg-surface-container border border-outline-variant hover:border-primary px-2.5 py-1.5 rounded-lg text-on-surface transition-all">
-              ⚡ "Reinforce early morn Thursday"
-            </button>
-            <button onClick={() => onQuickPrompt("Write me an encouraging motivational pep-talk regarding thesis writing!")} className="text-[10px] font-mono bg-surface-container border border-outline-variant hover:border-primary px-2.5 py-1.5 rounded-lg text-on-surface transition-all">
-              🌱 "Need moral support / pep-talk"
-            </button>
-          </div>
-        </div>
-
         {/* Input */}
         <form onSubmit={onSendChat} className="p-6 border-t border-outline-variant bg-surface">
           <div className="relative">
             <textarea
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
-              placeholder="Direct the Sentinel..."
+              placeholder="Chat with Heimdall..."
               className="w-full bg-surface-container-low border border-outline-variant p-4 pr-16 focus:border-primary outline-none text-on-surface font-body-md resize-none h-14 custom-scrollbar"
             />
             <button type="submit" disabled={isLoadingAdvisor} className="absolute bottom-4 right-4 w-10 h-10 bg-primary text-on-primary flex items-center justify-center hover:bg-primary-container transition-all">
