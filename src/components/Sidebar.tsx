@@ -13,7 +13,7 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
   ];
 
   return (
-    <aside className="hidden md:flex flex-col h-screen py-stack-lg bg-surface-container dark:bg-surface-container h-full w-52 left-0 fixed border-r border-outline-variant z-50">
+      <aside className="hidden md:flex flex-col h-screen pt-stack-lg pb-0 bg-surface-container dark:bg-surface-container h-full w-52 left-0 fixed border-r border-outline-variant z-50">
       <div className="px-6 mb-stack-lg">
         <div className="flex items-center gap-3 mb-2">
           <div className="w-12 h-12 flex items-center justify-center">
@@ -54,9 +54,9 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
         ))}
       </nav>
 
-      <div className="px-4 mt-auto">
+      <div className="px-4 mt-auto pb-0">
         
-        <div className="mt-6 flex items-center gap-3 px-2 py-3 border-t border-outline-variant/30">
+        <div className="mt-2 flex items-center gap-3 px-2 py-3 border-t border-outline-variant/30">
           <div className="w-8 h-8 rounded-full overflow-hidden border border-outline">
             <img
               className="w-full h-full object-cover"
