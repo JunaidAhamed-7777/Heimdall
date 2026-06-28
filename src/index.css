@@ -1,6 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300..800;1,300..800&family=Space+Grotesk:wght@300..700&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&family=Geist:wght@300;400;600&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=JetBrains+Mono:wght@100..900&family=Libre+Caslon+Text:wght@100..900&display=swap');
 @import "tailwindcss";
 
+/* ── Heimdall flashing logo animation ── */
 @keyframes dim-bright {
   0%, 100% { opacity: 0.4; }
   50% { opacity: 1; }
@@ -9,44 +11,149 @@
   animation: dim-bright 1.5s infinite ease-in-out;
 }
 
+/* ── Tailwind v4 Theme (Stitch Design) ── */
 @theme {
-  --font-sans: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Space Grotesk", sans-serif;
+  --font-sans: "Geist", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Libre Caslon Text", serif;
   --font-mono: "JetBrains Mono", monospace;
+  --font-headline-md: "Libre Caslon Text";
+  --font-label-caps: "JetBrains Mono";
+  --font-body-lg: "Geist";
+  --font-body-md: "Geist";
+  --font-display-lg: "Libre Caslon Text";
+  --font-headline-sm: "Libre Caslon Text";
+  --font-headline-md-mobile: "Libre Caslon Text";
+
+  /* Colors – Asgardian gold / deep dark palette */
+  --color-on-error: #690005;
+  --color-on-error-container: #ffdad6;
+  --color-on-surface-variant: #d0c5af;
+  --color-tertiary-fixed: #dbe1ff;
+  --color-primary-fixed-dim: #e9c349;
+  --color-secondary: #e2c37d;
+  --color-inverse-surface: #d6e4f7;
+  --color-surface-container-high: #1e2b39;
+  --color-surface-container-lowest: #020f1c;
+  --color-on-primary-fixed: #241a00;
+  --color-on-surface: #d6e4f7;
+  --color-on-tertiary-fixed: #00174b;
+  --color-error-container: #93000a;
+  --color-primary: #f2ca50;
+  --color-on-background: #d6e4f7;
+  --color-on-tertiary-fixed-variant: #27438a;
+  --color-on-tertiary-container: #254188;
+  --color-primary-fixed: #ffe088;
+  --color-outline-variant: #4d4635;
+  --color-inverse-primary: #735c00;
+  --color-on-secondary-fixed-variant: #594408;
+  --color-primary-container: #d4af37;
+  --color-tertiary: #bfcdff;
+  --color-on-secondary-container: #cfb26d;
+  --color-surface-container-highest: #293644;
+  --color-surface-container: #13212e;
+  --color-secondary-fixed: #ffdf97;
+  --color-background: #061422;
+  --color-surface: #061422;
+  --color-on-secondary-fixed: #251a00;
+  --color-surface-dim: #061422;
+  --color-on-primary: #3c2f00;
+  --color-on-tertiary: #082b72;
+  --color-inverse-on-surface: #243240;
+  --color-error: #ffb4ab;
+  --color-on-primary-fixed-variant: #574500;
+  --color-surface-container-low: #0f1d2a;
+  --color-secondary-fixed-dim: #e2c37d;
+  --color-surface-variant: #293644;
+  --color-on-secondary: #3e2e00;
+  --color-tertiary-container: #97b0ff;
+  --color-secondary-container: #594408;
+  --color-surface-tint: #e9c349;
+  --color-outline: #99907c;
+  --color-tertiary-fixed-dim: #b4c5ff;
+  --color-on-primary-container: #554300;
+  --color-surface-bright: #2d3a49;
+
+  /* Spacing tokens */
+  --spacing-stack-lg: 32px;
+  --spacing-stack-md: 16px;
+  --spacing-gutter: 16px;
+  --spacing-stack-sm: 8px;
+  --spacing-container-padding: 24px;
+  --spacing-unit: 4px;
+
+  /* Border radii */
+  --radius-DEFAULT: 0.125rem;
+  --radius-lg: 0.25rem;
+  --radius-xl: 0.5rem;
+  --radius-full: 0.75rem;
+
+  /* Font sizes */
+  --font-size-headline-md: 32px;
+  --line-height-headline-md: 40px;
+  --font-weight-headline-md: 600;
+  --font-size-label-caps: 12px;
+  --line-height-label-caps: 16px;
+  --letter-spacing-label-caps: 0.1em;
+  --font-weight-label-caps: 600;
+  --font-size-body-lg: 18px;
+  --line-height-body-lg: 28px;
+  --font-weight-body-lg: 400;
+  --font-size-body-md: 16px;
+  --line-height-body-md: 24px;
+  --font-weight-body-md: 400;
+  --font-size-display-lg: 48px;
+  --line-height-display-lg: 56px;
+  --letter-spacing-display-lg: -0.02em;
+  --font-weight-display-lg: 700;
+  --font-size-headline-sm: 24px;
+  --line-height-headline-sm: 32px;
+  --font-weight-headline-sm: 600;
+  --font-size-headline-md-mobile: 28px;
+  --line-height-headline-md-mobile: 36px;
+  --font-weight-headline-md-mobile: 600;
 }
 
+/* ── Base body – Asgardian dark background ── */
 body {
-  @apply bg-slate-950 text-slate-200 antialiased font-sans selection:bg-amber-500 selection:text-slate-950;
-  background-image: 
-    radial-gradient(at 0% 0%, rgba(15, 23, 42, 0.9) 0, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(30, 41, 59, 0.4) 0, transparent 50%);
+  background-color: #061422;
+  color: #d6e4f7;
+  font-family: 'Geist', sans-serif;
+  overflow-x: hidden;
 }
 
-/* Custom minimal scrollbar */
+/* ── Custom minimal scrollbar (global) ── */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  @apply bg-slate-900;
+  background: #061422;
 }
 ::-webkit-scrollbar-thumb {
-  @apply bg-slate-700 rounded hover:bg-slate-500 transition-colors;
+  background: #4d4635;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #99907c;
 }
 
+/* ── Material Symbols ── */
 .material-symbols-outlined {
   font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
 }
 
+/* ── Asgardian runic texture ── */
 .runic-pattern {
   background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0l10 20-10 20-10-20z' fill='%23d4af37' fill-opacity='0.02'/%3E%3C/svg%3E");
 }
 
+/* ── Gold glow on hover ── */
 .gold-glow:hover {
   box-shadow: 0 0 15px rgba(212, 175, 55, 0.2);
   border-color: #f2ca50;
 }
 
+/* ── Chat / panel custom scrollbars ── */
 .custom-scrollbar::-webkit-scrollbar {
   width: 4px;
 }
@@ -57,6 +164,7 @@ body {
   background: #4d4635;
 }
 
+/* ── Tab visibility (kept for potential future use) ── */
 .tab-content {
   display: none;
 }
