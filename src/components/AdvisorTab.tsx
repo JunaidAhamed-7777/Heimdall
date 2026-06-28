@@ -1,6 +1,6 @@
-import { useState } from "react";
 import { ChatMessage } from "../types";
 import { Send, RefreshCw } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
 
 interface AdvisorTabProps {
   chatMessages: ChatMessage[];
@@ -19,6 +19,11 @@ export default function AdvisorTab({
   onSendChat,
   onQuickPrompt
 }: AdvisorTabProps) {
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages]);
   return (
     <section className="h-[calc(100vh-10rem)]">
       <div className="max-w-4xl mx-auto h-full flex flex-col bg-surface-container border border-outline-variant overflow-hidden">
@@ -54,6 +59,7 @@ export default function AdvisorTab({
                   <div className={`p-4 text-sm font-body-md leading-relaxed text-on-surface max-w-xl ${isModel ? "bg-surface border border-outline-variant" : "bg-primary/5 border border-primary/20 text-left inline-block"}`}>
                     {msg.content}
                   </div>
+                <div ref={messagesEndRef} />
                 </div>
               </div>
             );
