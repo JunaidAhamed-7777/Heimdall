@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { TaskItem } from "../types";
 import {
-  Plus, Calendar, Clock, BookOpen, Presentation, Stethoscope, Coffee,
+  Plus, Calendar, Clock, BookOpen, Presentation, Stethoscope, Coffee, Check,
   CheckCircle2, Circle, Trash2, Sparkles, RefreshCw, Award, Flame, TrendingUp,
   Info
 } from "lucide-react";
@@ -180,9 +180,17 @@ export default function AgendaTab({
                   <div className={`absolute top-0 left-0 w-1 h-full ${t.completed ? "bg-primary/20" : "bg-primary/20"}`} />
                   <div className="flex justify-between items-start">
                     <div className="flex items-start gap-4">
-                      <button onClick={() => onToggleTask(t.id)} className="mt-1 w-6 h-6 border border-outline group-hover:border-primary flex items-center justify-center cursor-pointer">
-                        {t.completed ? <CheckCircle2 className="w-4 h-4 text-primary" /> : <Circle className="w-4 h-4 text-slate-600 hover:text-primary" />}
-                      </button>
+                      
+                    <button
+                      onClick={() => onToggleTask(t.id)}
+                      className={`mt-1 w-6 h-6 rounded-md flex items-center justify-center cursor-pointer transition-colors ${
+                        t.completed
+                          ? "bg-primary text-on-primary"
+                          : "border border-primary/60 hover:border-primary"
+                      }`}
+                    >
+                      {t.completed && <Check className="w-4 h-4" />}
+                    </button>
                       <div>
                         <div className="flex items-center gap-3 mb-1">
                           <span className="font-label-caps text-primary text-[11px]">{t.time}</span>
