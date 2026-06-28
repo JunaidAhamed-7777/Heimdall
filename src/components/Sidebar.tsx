@@ -55,9 +55,7 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
       </nav>
 
       <div className="px-4 mt-auto">
-        <button className="w-full border border-primary text-primary font-label-caps text-label-caps py-3 hover:bg-primary hover:text-on-primary transition-all active:scale-95">
-          New Protocol
-        </button>
+        
         <div className="mt-6 flex items-center gap-3 px-2 py-3 border-t border-outline-variant/30">
           <div className="w-8 h-8 rounded-full overflow-hidden border border-outline">
             <img
