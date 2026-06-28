@@ -1491,7 +1491,7 @@ if (data.action && data.action.name && data.action.parameters) {
         onDayChange={setSimulatedDay}
         allDaysList={allDaysList}
       />
-      <main className="pt-24 pb-12 px-container-padding md:ml-64 transition-all duration-300">
+      <main className="pt-20 pb-12 px-container-padding md:ml-64 transition-all duration-300">
         {activeTab === "agenda" && (
           <AgendaTab
             tasks={tasks}
