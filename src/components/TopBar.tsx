@@ -9,7 +9,7 @@ interface TopBarProps {
 
 export default function TopBar({ simulatedDay, onDayChange, allDaysList }: TopBarProps) {
   return (
-    <header className="fixed top-0 right-0 left-0 md:left-64 bg-surface dark:bg-surface border-b border-outline-variant z-40">
+    <header className="fixed top-0 right-0 left-0 md:left-52 bg-surface dark:bg-surface border-b border-outline-variant z-40">
       <div className="flex justify-between items-center px-container-padding py-stack-md max-w-full mx-auto">
         <div className="flex items-center gap-4">
           <h1 className="font-headline-sm text-headline-sm text-primary">Protocol Active</h1>

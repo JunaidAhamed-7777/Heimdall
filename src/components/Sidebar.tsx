@@ -13,7 +13,7 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
   ];
 
   return (
-    <aside className="hidden md:flex flex-col h-screen py-stack-lg bg-surface-container dark:bg-surface-container h-full w-64 left-0 fixed border-r border-outline-variant z-50">
+    <aside className="hidden md:flex flex-col h-screen py-stack-lg bg-surface-container dark:bg-surface-container h-full w-52 left-0 fixed border-r border-outline-variant z-50">
       <div className="px-6 mb-stack-lg">
         <div className="flex items-center gap-3 mb-2">
           <div className="w-12 h-12 flex items-center justify-center">
