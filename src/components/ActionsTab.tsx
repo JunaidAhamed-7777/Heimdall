@@ -64,12 +64,6 @@ export default function ActionsTab({ onDetectGaps, onCheckDocuments, onWeeklyRep
             <div className="mt-8 font-label-caps text-primary text-[10px] tracking-widest uppercase">Protocol Primary</div>
           </button>
         </div>
-        <div className="mt-12 p-8 bg-primary/5 border border-primary/20 text-center">
-          <p className="font-label-caps text-[12px] text-primary tracking-widest mb-4">SYSTEM NOTIFICATION</p>
-          <p className="font-body-md text-on-surface max-w-xl mx-auto italic">
-            "Every action taken today secures the foundation of tomorrow's legacy. Proceed with intent."
-          </p>
-        </div>
       </div>
     </section>
   );
