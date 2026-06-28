@@ -108,15 +108,7 @@ export default function AgendaTab({
               <p className="text-on-surface-variant font-body-md">{filteredTasks.length} sessions scheduled</p>
             </div>
             <div className="flex gap-3">
-              <select
-                value={simulatedDay}
-                onChange={(e) => onDayChange(e.target.value)}
-                className="bg-surface-container border border-outline-variant text-on-surface font-label-caps px-4 py-2 focus:border-primary outline-none cursor-pointer text-xs"
-              >
-                {allDaysList.map((day) => (
-                  <option key={day} value={day}>{day}</option>
-                ))}
-              </select>
+              
               <button
                 onClick={() => setShowAddForm(!showAddForm)}
                 className="bg-primary text-on-primary px-6 py-2 font-label-caps hover:bg-primary-container transition-colors"

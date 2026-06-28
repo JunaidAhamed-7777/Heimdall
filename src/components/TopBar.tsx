@@ -1,5 +1,6 @@
 import { Zap, Bell, Settings } from "lucide-react";
 import logo from "../../logo.png";
+import DaySelector from "./DaySelector";
 
 interface TopBarProps {
   simulatedDay: string;
@@ -27,17 +28,11 @@ export default function TopBar({ simulatedDay, onDayChange, allDaysList }: TopBa
             <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
             <span className="font-label-caps text-[11px] text-primary">VIGILANCE ACTIVE</span>
           </div>
-          <select
-            value={simulatedDay}
-            onChange={(e) => onDayChange(e.target.value)}
-            className="bg-surface-container border border-outline-variant text-on-surface font-label-caps px-3 py-1.5 focus:border-primary outline-none cursor-pointer text-xs"
-          >
-            {allDaysList.map((day) => (
-              <option key={day} value={day}>
-                {day}
-              </option>
-            ))}
-          </select>
+          <DaySelector
+            selectedDay={simulatedDay}
+            allDays={allDaysList}
+            onChange={onDayChange}
+          />
           <button className="material-symbols-outlined text-on-surface-variant hover:text-primary cursor-pointer">
             notifications
           </button>
