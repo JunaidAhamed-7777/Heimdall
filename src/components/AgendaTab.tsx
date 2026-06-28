@@ -1,0 +1,309 @@
+import { useState } from "react";
+import { TaskItem } from "../types";
+import {
+  Plus, Calendar, Clock, BookOpen, Presentation, Stethoscope, Coffee,
+  CheckCircle2, Circle, Trash2, Sparkles, RefreshCw, Award, Flame, TrendingUp,
+  Info
+} from "lucide-react";
+import { INITIAL_TASKS, INITIAL_MOTIF } from "../utils/initialData";
+
+interface AgendaTabProps {
+  tasks: TaskItem[];
+  simulatedDay: string;
+  allDaysList: string[];
+  onDayChange: (day: string) => void;
+  onToggleTask: (id: string) => void;
+  onDeleteTask: (id: string) => void;
+  onAddTask: (task: TaskItem) => void;
+  onResetSchedule: () => void;
+  // Habit related props
+  habits: any[];
+  onAddHabit: (name: string, freq: string, time: string, dur: number) => void;
+  onLogHabit: (id: string) => void;
+  onRemoveHabit: (id: string) => void;
+  onRegenerateSchedule: (prompt: string) => void;
+}
+
+export default function AgendaTab({
+  tasks, simulatedDay, allDaysList, onDayChange,
+  onToggleTask, onDeleteTask, onAddTask, onResetSchedule,
+  habits, onAddHabit, onLogHabit, onRemoveHabit,
+  onRegenerateSchedule
+}: AgendaTabProps) {
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newTaskName, setNewTaskName] = useState("");
+  const [newTaskDay, setNewTaskDay] = useState(simulatedDay);
+  const [newTaskTime, setNewTaskTime] = useState("09:00 - 10:30");
+  const [newTaskDuration, setNewTaskDuration] = useState("1.5 hours");
+  const [newTaskCategory, setNewTaskCategory] = useState<"thesis" | "presentation" | "appointment" | "break" | "general">("thesis");
+  const [newTaskDesc, setNewTaskDesc] = useState("");
+  const [showAddHabitForm, setShowAddHabitForm] = useState(false);
+  const [newHabitName, setNewHabitName] = useState("");
+  const [newHabitFreq, setNewHabitFreq] = useState<"daily" | "weekly" | "custom">("daily");
+  const [newHabitTime, setNewHabitTime] = useState("07:30");
+  const [newHabitDur, setNewHabitDur] = useState(10);
+  const [rawPromptInput, setRawPromptInput] = useState("");
+  const [isLoadingRegen, setIsLoadingRegen] = useState(false);
+
+  const filteredTasks = tasks.filter(
+    (t) => t && t.day && typeof t.day === "string" && t.day.toLowerCase() === simulatedDay.toLowerCase()
+  );
+
+  const getCategoryTheme = (cat: string) => {
+    switch (cat) {
+      case "thesis": return { bg: "bg-emerald-500/10 border-emerald-500/20 text-emerald-400", icon: <BookOpen className="w-4 h-4 text-emerald-400" />, label: "Thesis Focus" };
+      case "presentation": return { bg: "bg-blue-500/10 border-blue-500/20 text-blue-400", icon: <Presentation className="w-4 h-4 text-blue-400" />, label: "Presentation" };
+      case "appointment": return { bg: "bg-amber-500/10 border-amber-500/20 text-amber-400", icon: <Stethoscope className="w-4 h-4 text-amber-400" />, label: "Healthcare" };
+      case "break": return { bg: "bg-purple-500/10 border-purple-500/20 text-purple-400", icon: <Coffee className="w-4 h-4 text-purple-400" />, label: "Recharge" };
+      default: return { bg: "bg-slate-800 border-slate-700 text-slate-300", icon: <Clock className="w-4 h-4 text-slate-300" />, label: "General" };
+    }
+  };
+
+  const handleAddTask = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTaskName.trim()) return;
+    const newTask: TaskItem = {
+      id: `task-${Date.now()}`,
+      day: newTaskDay,
+      time: newTaskTime,
+      task: newTaskName,
+      duration: newTaskDuration,
+      category: newTaskCategory,
+      completed: false,
+      description: newTaskDesc || "Custom session added by user."
+    };
+    onAddTask(newTask);
+    setNewTaskName("");
+    setNewTaskDesc("");
+    setShowAddForm(false);
+  };
+
+  const handleAddHabit = () => {
+    if (!newHabitName.trim()) return;
+    onAddHabit(newHabitName, newHabitFreq, newHabitTime, newHabitDur);
+    setNewHabitName("");
+    setShowAddHabitForm(false);
+  };
+
+  const handleRegenerate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rawPromptInput.trim()) return;
+    setIsLoadingRegen(true);
+    try {
+      await onRegenerateSchedule(rawPromptInput);
+      setRawPromptInput("");
+    } finally {
+      setIsLoadingRegen(false);
+    }
+  };
+
+  return (
+    <section className="space-y-stack-lg">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
+        {/* Left column: tasks */}
+        <div className="lg:col-span-8 space-y-stack-md">
+          <div className="flex justify-between items-end mb-4">
+            <div>
+              <h2 className="font-headline-md text-headline-md text-on-surface">Sequence: {simulatedDay}</h2>
+              <p className="text-on-surface-variant font-body-md">{filteredTasks.length} sessions scheduled</p>
+            </div>
+            <div className="flex gap-3">
+              <select
+                value={simulatedDay}
+                onChange={(e) => onDayChange(e.target.value)}
+                className="bg-surface-container border border-outline-variant text-on-surface font-label-caps px-4 py-2 focus:border-primary outline-none cursor-pointer text-xs"
+              >
+                {allDaysList.map((day) => (
+                  <option key={day} value={day}>{day}</option>
+                ))}
+              </select>
+              <button
+                onClick={() => setShowAddForm(!showAddForm)}
+                className="bg-primary text-on-primary px-6 py-2 font-label-caps hover:bg-primary-container transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5 inline mr-1" /> Add Task
+              </button>
+            </div>
+          </div>
+
+          {/* Add Task Form */}
+          {showAddForm && (
+            <form onSubmit={handleAddTask} className="bg-surface-container border border-outline-variant p-6 space-y-4 rounded">
+              {/* form fields similar to old but with Stitch theme colors */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-mono text-on-surface-variant">Task Name</label>
+                  <input value={newTaskName} onChange={(e) => setNewTaskName(e.target.value)} className="w-full bg-surface border border-outline-variant rounded px-2 py-1 text-xs text-on-surface focus:border-primary" />
+                </div>
+                <div>
+                  <label className="text-xs font-mono text-on-surface-variant">Day</label>
+                  <select value={newTaskDay} onChange={(e) => setNewTaskDay(e.target.value)} className="w-full bg-surface border border-outline-variant rounded px-2 py-1 text-xs text-on-surface">
+                    {allDaysList.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-mono text-on-surface-variant">Time Range</label>
+                  <input value={newTaskTime} onChange={(e) => setNewTaskTime(e.target.value)} className="w-full bg-surface border border-outline-variant rounded px-2 py-1 text-xs text-on-surface font-mono" />
+                </div>
+                <div>
+                  <label className="text-xs font-mono text-on-surface-variant">Duration</label>
+                  <input value={newTaskDuration} onChange={(e) => setNewTaskDuration(e.target.value)} className="w-full bg-surface border border-outline-variant rounded px-2 py-1 text-xs text-on-surface" />
+                </div>
+                <div>
+                  <label className="text-xs font-mono text-on-surface-variant">Category</label>
+                  <select value={newTaskCategory} onChange={(e) => setNewTaskCategory(e.target.value as any)} className="w-full bg-surface border border-outline-variant rounded px-2 py-1 text-xs text-on-surface">
+                    <option value="thesis">Thesis Focus</option>
+                    <option value="presentation">Presentation</option>
+                    <option value="appointment">Healthcare</option>
+                    <option value="break">Recharge</option>
+                    <option value="general">General</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-mono text-on-surface-variant">Description</label>
+                  <input value={newTaskDesc} onChange={(e) => setNewTaskDesc(e.target.value)} className="w-full bg-surface border border-outline-variant rounded px-2 py-1 text-xs text-on-surface" />
+                </div>
+              </div>
+              <div className="flex justify-end space-x-2">
+                <button type="button" onClick={() => setShowAddForm(false)} className="text-xs font-mono border border-outline-variant px-3 py-1.5 rounded text-on-surface-variant hover:bg-surface-variant">Cancel</button>
+                <button type="submit" className="bg-primary text-on-primary font-bold px-4 py-1.5 rounded text-xs">Save</button>
+              </div>
+            </form>
+          )}
+
+          {/* Task Cards */}
+          <div className="space-y-4">
+            {filteredTasks.map((t) => {
+              const catStyles = getCategoryTheme(t.category);
+              return (
+                <div key={t.id} className={`bg-surface-container border border-outline-variant p-6 hover:border-primary/50 transition-colors group relative ${t.completed ? "opacity-60" : ""}`}>
+                  <div className={`absolute top-0 left-0 w-1 h-full ${t.completed ? "bg-primary/20" : "bg-primary/20"}`} />
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-start gap-4">
+                      <button onClick={() => onToggleTask(t.id)} className="mt-1 w-6 h-6 border border-outline group-hover:border-primary flex items-center justify-center cursor-pointer">
+                        {t.completed ? <CheckCircle2 className="w-4 h-4 text-primary" /> : <Circle className="w-4 h-4 text-slate-600 hover:text-primary" />}
+                      </button>
+                      <div>
+                        <div className="flex items-center gap-3 mb-1">
+                          <span className="font-label-caps text-primary text-[11px]">{t.time}</span>
+                          <span className={`text-[10px] font-label-caps px-2 py-0.5 rounded border uppercase ${catStyles.bg}`}>{catStyles.label}</span>
+                          <span className="text-[10px] text-slate-500 font-mono">({t.duration})</span>
+                        </div>
+                        <h3 className={`font-headline-sm text-headline-sm text-on-surface mb-2 ${t.completed ? "line-through text-slate-500" : ""}`}>{t.task}</h3>
+                        <p className="text-on-surface-variant text-sm font-body-md max-w-2xl leading-relaxed">{t.description}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => onDeleteTask(t.id)} className="text-on-surface-variant/40 hover:text-error transition-colors">
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+            {filteredTasks.length === 0 && (
+              <div className="text-center py-12 border border-dashed border-outline-variant rounded-xl">
+                <Coffee className="w-8 h-8 text-slate-500 mx-auto mb-2" />
+                <p className="text-xs text-on-surface-variant font-mono">No sessions on {simulatedDay}.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Habits Lounge */}
+          <div className="bg-surface-container border border-outline-variant p-6 space-y-6">
+            <div className="flex items-center justify-between border-b border-outline-variant pb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Award className="w-5 h-5 text-primary" />
+                  <h3 className="font-headline-sm text-on-surface">Self-Care & Habits Lounge</h3>
+                </div>
+                <p className="text-xs text-on-surface-variant">Maintain streaks and log milestones</p>
+              </div>
+              <button onClick={() => setShowAddHabitForm(!showAddHabitForm)} className="bg-primary/10 text-primary border border-primary/30 px-3 py-1.5 rounded text-xs font-bold">
+                <Plus className="w-3 h-3 inline" /> Define Habit
+              </button>
+            </div>
+            {showAddHabitForm && (
+              <div className="p-4 rounded bg-surface border border-outline-variant space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <input placeholder="Habit name" value={newHabitName} onChange={(e) => setNewHabitName(e.target.value)} className="w-full bg-surface-container-low border border-outline-variant rounded px-2 py-1 text-xs text-on-surface" />
+                  <select value={newHabitFreq} onChange={(e) => setNewHabitFreq(e.target.value as any)} className="w-full bg-surface-container-low border border-outline-variant rounded px-2 py-1 text-xs text-on-surface">
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                  <input placeholder="Time (e.g., 07:30)" value={newHabitTime} onChange={(e) => setNewHabitTime(e.target.value)} className="w-full bg-surface-container-low border border-outline-variant rounded px-2 py-1 text-xs text-on-surface" />
+                  <input type="number" placeholder="Minutes" value={newHabitDur} onChange={(e) => setNewHabitDur(Number(e.target.value) || 10)} className="w-full bg-surface-container-low border border-outline-variant rounded px-2 py-1 text-xs text-on-surface" />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <button onClick={() => setShowAddHabitForm(false)} className="text-xs border border-outline-variant px-3 py-1.5 rounded">Cancel</button>
+                  <button onClick={handleAddHabit} className="bg-primary text-on-primary text-xs font-bold px-4 py-1.5 rounded">Register</button>
+                </div>
+              </div>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {habits.map((h) => {
+                const isDoneToday = h.lastCompletedDate === new Date().toISOString().slice(0, 10); // simplified
+                return (
+                  <div key={h.id} className={`p-4 rounded border ${isDoneToday ? "bg-primary/5 border-primary/20" : "bg-surface border-outline-variant"}`}>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="text-xs font-mono text-on-surface-variant">{h.frequency}</span>
+                        <h4 className="font-semibold text-sm">{h.name}</h4>
+                        <div className="flex items-center gap-2 mt-2 text-xs text-on-surface-variant">
+                          <Clock className="w-3 h-3" /> {h.preferred_time} ({h.duration_minutes}m)
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="flex items-center gap-1 text-xs font-mono"><Flame className="w-4 h-4 text-amber-500" /> {h.streak}</span>
+                        <button
+                          disabled={isDoneToday}
+                          onClick={() => onLogHabit(h.id)}
+                          className={`text-xs px-2 py-1 rounded ${isDoneToday ? "bg-primary/20 text-primary" : "bg-primary text-on-primary"}`}
+                        >
+                          {isDoneToday ? "Done" : "Check Off"}
+                        </button>
+                        <button onClick={() => onRemoveHabit(h.id)} className="text-slate-500 hover:text-red-400"><Trash2 className="w-3 h-3" /></button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Regenerate Schedule */}
+          <div className="bg-surface-container border border-outline-variant p-6">
+            <h3 className="font-headline-sm text-on-surface flex items-center gap-2"><Sparkles className="w-4 h-4 text-primary" /> Dynamic Schedule Generator</h3>
+            <p className="text-xs text-on-surface-variant mt-2 mb-4">Describe revised context to regenerate the daily blueprint.</p>
+            <form onSubmit={handleRegenerate} className="space-y-4">
+              <textarea
+                rows={3}
+                value={rawPromptInput}
+                onChange={(e) => setRawPromptInput(e.target.value)}
+                placeholder="e.g., Move methodology to Thursday..."
+                className="w-full bg-surface border border-outline-variant rounded p-3 text-xs text-on-surface focus:border-primary"
+              />
+              <button type="submit" disabled={isLoadingRegen} className="bg-primary text-on-primary px-4 py-2 rounded text-xs font-bold">
+                {isLoadingRegen ? <RefreshCw className="animate-spin inline w-3 h-3" /> : "Regenerate Timetable"}
+              </button>
+            </form>
+          </div>
+        </div>
+
+        {/* Right column: stats (simplified) */}
+        <div className="lg:col-span-4 space-y-stack-md">
+          <div className="bg-surface-container border border-outline-variant p-6">
+            <h4 className="font-label-caps text-on-surface-variant text-[11px] mb-4 border-b border-outline-variant pb-2">RESOURCE ALLOCATION</h4>
+            <p className="text-xs text-on-surface-variant">Thesis: {tasks.filter(t => t.category === "thesis").filter(t => t.completed).length} / {tasks.filter(t => t.category === "thesis").length} tasks done</p>
+            <p className="text-xs text-on-surface-variant mt-2">Presentation: {tasks.filter(t => t.category === "presentation").filter(t => t.completed).length} / {tasks.filter(t => t.category === "presentation").length} tasks done</p>
+            <div className="mt-4 border-t border-outline-variant pt-4">
+              <p className="text-error text-xs font-bold">DEADLINES REMAINING</p>
+              <p className="text-2xl font-mono">48 hrs</p>
+              <span className="bg-error/10 text-error border border-error/30 px-3 py-1 text-[9px] font-label-caps">THESIS DUE FRI</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
