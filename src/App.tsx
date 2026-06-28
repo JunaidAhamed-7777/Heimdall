@@ -1491,7 +1491,7 @@ if (data.action && data.action.name && data.action.parameters) {
         onDayChange={setSimulatedDay}
         allDaysList={allDaysList}
       />
-      <main className="pt-16 pb-12 px-container-padding md:ml-64 transition-all duration-300">
+      <main className="pt-16 pb-12 px-container-padding md:ml-52 transition-all duration-300">
         {activeTab === "agenda" && (
           <AgendaTab
             tasks={tasks}
@@ -1590,7 +1590,7 @@ if (data.action && data.action.name && data.action.parameters) {
       )}
 
       <MobileBottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
-      <footer className="md:ml-64 border-t border-outline-variant bg-surface px-container-padding py-stack-md mt-auto relative z-10">
+      <footer className="md:ml-52 border-t border-outline-variant bg-surface px-container-padding py-stack-md mt-auto relative z-10">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <span className="font-label-caps text-label-caps text-on-surface-variant">© HEIMDALL PROTOCOL — ASGARDIAN DEFENSE</span>
           <div className="flex gap-8">
