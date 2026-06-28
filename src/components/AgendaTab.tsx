@@ -97,7 +97,7 @@ export default function AgendaTab({
     }
   };
 
-  return (
+    return (
     <section className="space-y-stack-lg">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
         {/* Left column: tasks */}
@@ -108,7 +108,6 @@ export default function AgendaTab({
               <p className="text-on-surface-variant font-body-md">{filteredTasks.length} sessions scheduled</p>
             </div>
             <div className="flex gap-3">
-              
               <button
                 onClick={() => setShowAddForm(!showAddForm)}
                 className="bg-primary text-on-primary px-6 py-2 font-label-caps hover:bg-primary-container transition-colors"
@@ -121,7 +120,6 @@ export default function AgendaTab({
           {/* Add Task Form */}
           {showAddForm && (
             <form onSubmit={handleAddTask} className="bg-surface-container border border-outline-variant p-6 space-y-4 rounded">
-              {/* form fields similar to old but with Stitch theme colors */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-mono text-on-surface-variant">Task Name</label>
@@ -172,17 +170,16 @@ export default function AgendaTab({
                   <div className={`absolute top-0 left-0 w-1 h-full ${t.completed ? "bg-primary/20" : "bg-primary/20"}`} />
                   <div className="flex justify-between items-start">
                     <div className="flex items-start gap-4">
-                      
-                    <button
-                      onClick={() => onToggleTask(t.id)}
-                      className={`mt-1 w-6 h-6 rounded-md flex items-center justify-center cursor-pointer transition-colors ${
-                        t.completed
-                          ? "bg-primary text-on-primary"
-                          : "border border-primary/60 hover:border-primary"
-                      }`}
-                    >
-                      {t.completed && <Check className="w-4 h-4" />}
-                    </button>
+                      <button
+                        onClick={() => onToggleTask(t.id)}
+                        className={`mt-1 w-6 h-6 rounded-md flex items-center justify-center cursor-pointer transition-colors ${
+                          t.completed
+                            ? "bg-primary text-on-primary"
+                            : "border border-primary/60 hover:border-primary"
+                        }`}
+                      >
+                        {t.completed && <Check className="w-4 h-4" />}
+                      </button>
                       <div>
                         <div className="flex items-center gap-3 mb-1">
                           <span className="font-label-caps text-primary text-[11px]">{t.time}</span>
@@ -242,7 +239,7 @@ export default function AgendaTab({
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {habits.map((h) => {
-                const isDoneToday = h.lastCompletedDate === new Date().toISOString().slice(0, 10); // simplified
+                const isDoneToday = h.lastCompletedDate === new Date().toISOString().slice(0, 10);
                 return (
                   <div key={h.id} className={`p-4 rounded border ${isDoneToday ? "bg-primary/5 border-primary/20" : "bg-surface border-outline-variant"}`}>
                     <div className="flex justify-between items-start">
@@ -270,11 +267,33 @@ export default function AgendaTab({
               })}
             </div>
           </div>
+        </div>{/* End left column */}
 
-          {/* Regenerate Schedule */}
+        {/* Right column: stats + Dynamic Scheduler */}
+        <div className="lg:col-span-4 space-y-stack-md">
+          {/* Resource Allocation – header removed */}
           <div className="bg-surface-container border border-outline-variant p-6">
-            <h3 className="font-headline-sm text-on-surface flex items-center gap-2"><Sparkles className="w-4 h-4 text-primary" /> Dynamic Schedule Generator</h3>
-            <p className="text-xs text-on-surface-variant mt-2 mb-4">Describe revised context to regenerate the daily blueprint.</p>
+            <p className="text-xs text-on-surface-variant">
+              Thesis: {tasks.filter(t => t.category === "thesis").filter(t => t.completed).length} / {tasks.filter(t => t.category === "thesis").length} tasks done
+            </p>
+            <p className="text-xs text-on-surface-variant mt-2">
+              Presentation: {tasks.filter(t => t.category === "presentation").filter(t => t.completed).length} / {tasks.filter(t => t.category === "presentation").length} tasks done
+            </p>
+            <div className="mt-4 border-t border-outline-variant pt-4">
+              <p className="text-error text-xs font-bold">DEADLINES REMAINING</p>
+              <p className="text-2xl font-mono">48 hrs</p>
+              <span className="bg-error/10 text-error border border-error/30 px-3 py-1 text-[9px] font-label-caps">THESIS DUE FRI</span>
+            </div>
+          </div>
+
+          {/* Dynamic Schedule Generator – moved from left column */}
+          <div className="bg-surface-container border border-outline-variant p-6">
+            <h3 className="font-headline-sm text-on-surface flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" /> Dynamic Schedule Generator
+            </h3>
+            <p className="text-xs text-on-surface-variant mt-2 mb-4">
+              Describe revised context to regenerate the daily blueprint.
+            </p>
             <form onSubmit={handleRegenerate} className="space-y-4">
               <textarea
                 rows={3}
@@ -288,21 +307,7 @@ export default function AgendaTab({
               </button>
             </form>
           </div>
-        </div>
-
-        {/* Right column: stats (simplified) */}
-        <div className="lg:col-span-4 space-y-stack-md">
-          <div className="bg-surface-container border border-outline-variant p-6">
-            <h4 className="font-label-caps text-on-surface-variant text-[11px] mb-4 border-b border-outline-variant pb-2">RESOURCE ALLOCATION</h4>
-            <p className="text-xs text-on-surface-variant">Thesis: {tasks.filter(t => t.category === "thesis").filter(t => t.completed).length} / {tasks.filter(t => t.category === "thesis").length} tasks done</p>
-            <p className="text-xs text-on-surface-variant mt-2">Presentation: {tasks.filter(t => t.category === "presentation").filter(t => t.completed).length} / {tasks.filter(t => t.category === "presentation").length} tasks done</p>
-            <div className="mt-4 border-t border-outline-variant pt-4">
-              <p className="text-error text-xs font-bold">DEADLINES REMAINING</p>
-              <p className="text-2xl font-mono">48 hrs</p>
-              <span className="bg-error/10 text-error border border-error/30 px-3 py-1 text-[9px] font-label-caps">THESIS DUE FRI</span>
-            </div>
-          </div>
-        </div>
+        </div>{/* End right column */}
       </div>
     </section>
   );
