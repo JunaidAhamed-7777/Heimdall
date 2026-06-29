@@ -9,3 +9,4 @@ coverage/
 .opencode/
 graphify-out/
 docs/
+firebase-applet-config.json
