@@ -1615,8 +1615,7 @@ if (data.action && data.action.name && data.action.parameters) {
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <span className="font-label-caps text-label-caps text-on-surface-variant">By Junaid</span>
           <div className="flex gap-8">
-            <a className="font-label-caps text-label-caps text-on-surface-variant hover:text-primary transition-colors" href="#">System Status</a>
-            <a className="font-label-caps text-label-caps text-on-surface-variant hover:text-primary transition-colors" href="#">Vigilance Logs</a>
+            <a className="font-label-caps text-label-caps text-on-surface-variant hover:text-primary transition-colors" href="#">Privacy Policy</a>
             <a className="font-label-caps text-label-caps text-on-surface-variant hover:text-primary transition-colors" href="#">Support</a>
           </div>
         </div>
