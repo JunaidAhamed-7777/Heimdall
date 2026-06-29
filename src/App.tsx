@@ -1662,6 +1662,13 @@ if (data.action && data.action.name && data.action.parameters) {
     setTasks(prev => prev.map(t => t.category === name ? { ...t, category: "General" } : t));
   };
 
+  // Keep only the last 500 chat messages
+  useEffect(() => {
+    if (chatMessages.length > 500) {
+      setChatMessages((prev) => prev.slice(-500));
+    }
+  }, [chatMessages]);
+
   if (splashVisible) {
     return (
       <div
