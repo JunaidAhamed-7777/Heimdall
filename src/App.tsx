@@ -188,6 +188,28 @@ const [tasks, setTasks] = useState<TaskItem[]>(() => {
   }));
 });
 
+const [categories, setCategories] = useState<string[]>(() => {
+  try {
+    const saved = safeStorage.getItem("heimdall_categories");
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {}
+  return ["General"];
+});
+
+const [deadlines, setDeadlines] = useState<any[]>(() => {
+  try {
+    const saved = safeStorage.getItem("heimdall_deadlines");
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {}
+  return [];
+});
+
   const [motif, setMotif] = useState<string>(() => {
     try {
       const saved = safeStorage.getItem("heimdall_motif");
@@ -589,7 +611,7 @@ const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: s
   const [newTaskDay, setNewTaskDay] = useState<string>("Wednesday");
   const [newTaskTime, setNewTaskTime] = useState<string>("09:00 - 10:30");
   const [newTaskDuration, setNewTaskDuration] = useState<string>("1.5 hours");
-  const [newTaskCategory, setNewTaskCategory] = useState<"thesis" | "presentation" | "appointment" | "break" | "general">("thesis");
+  const [newTaskCategory, setNewTaskCategory] = useState<string>("General");
   const [newTaskDesc, setNewTaskDesc] = useState<string>("");
 
   // Sync to localStorage on change safely
@@ -608,6 +630,14 @@ const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: s
   useEffect(() => {
     safeStorage.setItem("heimdall_habits", JSON.stringify(habits));
   }, [habits]);
+
+  useEffect(() => {
+    safeStorage.setItem("heimdall_categories", JSON.stringify(categories));
+  }, [categories]);
+
+  useEffect(() => {
+    safeStorage.setItem("heimdall_deadlines", JSON.stringify(deadlines));
+  }, [deadlines]);
 
   // Track simulated day transitions to execute proactive audits automatically!
   const prevDayRef = useRef<string>(simulatedDay);
@@ -1540,6 +1570,11 @@ if (data.action && data.action.name && data.action.parameters) {
             onLogHabit={executeLogHabit}
             onRemoveHabit={handleDeleteHabit}
             onRegenerateSchedule={(prompt) => handleAIGenerateSchedule({ preventDefault: () => {} } as React.FormEvent)}
+            categories={categories}
+            onAddCategory={(cat) => setCategories(prev => [...prev, cat])}
+            deadlines={deadlines}
+            onAddDeadline={(name, date) => setDeadlines(prev => [...prev, { id: 'deadline-' + Date.now(), name, date }])}
+            onRemoveDeadline={(id) => setDeadlines(prev => prev.filter(d => d.id !== id))}
           />
         )}
 

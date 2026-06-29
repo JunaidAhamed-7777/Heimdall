@@ -5,7 +5,6 @@ import DatePicker from "./DatePicker";
 interface TopBarProps {
   simulatedDay: string;
   onDayChange: (day: string) => void;
-  allDaysList: string[]; // still present but not used; keep for now
   onSettingsClick: () => void;
 }
 

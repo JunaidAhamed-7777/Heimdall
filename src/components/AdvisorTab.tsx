@@ -1,6 +1,6 @@
+import React, { useState, useRef, useEffect } from "react";
 import { ChatMessage } from "../types";
 import { Send, RefreshCw } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
 
 interface AdvisorTabProps {
   chatMessages: ChatMessage[];
