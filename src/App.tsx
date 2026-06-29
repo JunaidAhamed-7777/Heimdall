@@ -48,6 +48,7 @@ import ConfirmModal from "./components/ConfirmModal";
 import HabitsPage from "./components/HabitsPage";
 import { getDefaultSimulatedDate, getSimulatedDate, getDayLabelFromDate } from "./utils/dateUtils";
 import InfoModal from "./components/InfoModal";
+import SettingsModal from "./components/SettingsModal";
 
 // Helper function to generate an ICS calendar content string
 const generateICSFile = (events: Array<{ title: string; day: string; start_time: string; end_time: string }>): string => {
@@ -121,6 +122,8 @@ const safeConfirm = (message: string): boolean => {
   return true; // Bypass confirmation in highly secure sandbox frames
 };
 export default function App() {
+
+  const [showSettings, setShowSettings] = useState(false);
 
   const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; body: React.ReactNode }>({
     isOpen: false,
@@ -218,39 +221,15 @@ const [tasks, setTasks] = useState<TaskItem[]>(() => {
 
   // --- Habits & Goals Tracking States ---
   const [habits, setHabits] = useState<any[]>(() => {
-    try {
-      const saved = safeStorage.getItem("heimdall_habits");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch {}
-    // Seed standard high-fidelity initial habits for the Thesis draft Author context!
-    return [
-      {
-        id: "habit-1",
-        name: "Morning Meditation",
-        frequency: "daily",
-        preferred_time: "07:30",
-        duration_minutes: 10,
-        streak: 3,
-        lastCompletedDate: "2026-06-22", // Monday (Yesterday)
-        history: ["2026-06-20", "2026-06-21", "2026-06-22"],
-        createdAt: "2026-06-20"
-      },
-      {
-        id: "habit-2",
-        name: "Thesis Writing Block",
-        frequency: "daily",
-        preferred_time: "09:00",
-        duration_minutes: 120,
-        streak: 5,
-        lastCompletedDate: "2026-06-22", // Monday (Yesterday)
-        history: ["2026-06-18", "2026-06-19", "2026-06-20", "2026-06-21", "2026-06-22"],
-        createdAt: "2026-06-18"
-      }
-    ];
-  });
+  try {
+    const saved = safeStorage.getItem("heimdall_habits");
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {}
+  return []; // ← now empty
+});
   const [streakBadgeAlert, setStreakBadgeAlert] = useState<{ habitName: string; streak: number } | null>(null);
   const [showAddHabitForm, setShowAddHabitForm] = useState<boolean>(false);
   const [newHabitName, setNewHabitName] = useState<string>("");
@@ -1545,6 +1524,7 @@ if (data.action && data.action.name && data.action.parameters) {
       <TopBar
         simulatedDay={simulatedDay}
         onDayChange={setSimulatedDay}
+        onSettingsClick={() => setShowSettings(true)}
       />
       <main className="flex-1 pt-16 pb-12 px-container-padding md:ml-52 transition-all duration-300">
         {activeTab === "agenda" && (
@@ -1685,6 +1665,11 @@ if (data.action && data.action.name && data.action.parameters) {
       >
         {infoModal.body}
       </InfoModal>
+      <SettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+      />
+
     </div>
   );
 }

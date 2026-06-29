@@ -5,9 +5,11 @@ import DatePicker from "./DatePicker";
 interface TopBarProps {
   simulatedDay: string;
   onDayChange: (day: string) => void;
+  allDaysList: string[]; // still present but not used; keep for now
+  onSettingsClick: () => void;
 }
 
-export default function TopBar({ simulatedDay, onDayChange }: TopBarProps) {
+export default function TopBar({ simulatedDay, onDayChange, onSettingsClick  }: TopBarProps) {
   const [isOnline, setIsOnline] = useState<boolean>(true);
 
   // Check actual connectivity by pinging a reliable endpoint
@@ -71,7 +73,10 @@ export default function TopBar({ simulatedDay, onDayChange }: TopBarProps) {
           <button className="material-symbols-outlined text-on-surface-variant hover:text-primary cursor-pointer">
             notifications
           </button>
-          <button className="material-symbols-outlined text-on-surface-variant hover:text-primary cursor-pointer">
+          <button
+            onClick={onSettingsClick}
+            className="material-symbols-outlined text-on-surface-variant hover:text-primary cursor-pointer"
+          >
             settings
           </button>
         </div>
