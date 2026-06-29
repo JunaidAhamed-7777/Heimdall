@@ -8,6 +8,7 @@ interface SidebarProps {
 export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
   const navItems = [
     { id: "agenda", label: "Agenda", icon: "calendar_today" },
+    { id: "habits", label: "Habits", icon: "local_fire_department" },
     { id: "actions", label: "Actions", icon: "bolt" },
     { id: "advisor", label: "Advisor", icon: "psychology" },
   ];

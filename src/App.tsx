@@ -45,6 +45,7 @@ import ActionsTab from "./components/ActionsTab";
 import AdvisorTab from "./components/AdvisorTab";
 import MobileBottomNav from "./components/MobileBottomNav";
 import ConfirmModal from "./components/ConfirmModal";
+import HabitsPage from "./components/HabitsPage";
 
 // Helper function to generate an ICS calendar content string
 const generateICSFile = (events: Array<{ title: string; day: string; start_time: string; end_time: string }>): string => {
@@ -1533,6 +1534,16 @@ if (data.action && data.action.name && data.action.parameters) {
             onRegenerateSchedule={(prompt) => handleAIGenerateSchedule({ preventDefault: () => {} } as React.FormEvent)}
           />
         )}
+
+        {activeTab === "habits" && (
+          <HabitsPage
+            habits={habits}
+            onAddHabit={executeAddHabit}
+            onLogHabit={executeLogHabit}
+            onRemoveHabit={handleDeleteHabit}
+          />
+        )}
+
         {activeTab === "actions" && (
           <ActionsTab
             onDetectGaps={executeDetectGapsAndNudge}
