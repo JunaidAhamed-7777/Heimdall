@@ -122,7 +122,7 @@ const safeConfirm = (message: string): boolean => {
 };
 export default function App() {
 
-  const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; body: string }>({
+  const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; body: React.ReactNode }>({
     isOpen: false,
     title: "",
     body: "",
@@ -140,7 +140,25 @@ export default function App() {
     setInfoModal({
       isOpen: true,
       title: "Support",
-      body: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
+      body: (
+        <div className="space-y-3">
+          <p>
+            <a
+              href="https://github.com/JunaidAhamed-7777/Heimdall"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary underline hover:text-primary-fixed transition-colors"
+            >
+              Click Here To Access The Repository
+            </a>
+          </p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>Want to support this? Star the repository :)</li>
+            <li>Want to report any bugs or suggest features? Open a new issue and drop a pull request.</li>
+          </ul>
+          <p className="pt-2">Thank you for using this app and your support !</p>
+        </div>
+      ),
     });
   };
 
@@ -1665,7 +1683,7 @@ if (data.action && data.action.name && data.action.parameters) {
         onClose={() => setInfoModal({ isOpen: false, title: "", body: "" })}
         title={infoModal.title}
       >
-        <p>{infoModal.body}</p>
+        {infoModal.body}
       </InfoModal>
     </div>
   );
