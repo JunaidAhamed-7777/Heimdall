@@ -1613,7 +1613,7 @@ if (data.action && data.action.name && data.action.parameters) {
       <MobileBottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
       <footer className="md:ml-52 border-t border-outline-variant bg-surface px-container-padding py-2 relative z-10">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-          <span className="font-label-caps text-label-caps text-on-surface-variant">© HEIMDALL PROTOCOL — ASGARDIAN DEFENSE</span>
+          <span className="font-label-caps text-label-caps text-on-surface-variant">By Junaid</span>
           <div className="flex gap-8">
             <a className="font-label-caps text-label-caps text-on-surface-variant hover:text-primary transition-colors" href="#">System Status</a>
             <a className="font-label-caps text-label-caps text-on-surface-variant hover:text-primary transition-colors" href="#">Vigilance Logs</a>
