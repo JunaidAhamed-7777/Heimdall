@@ -1639,9 +1639,9 @@ if (data.action && data.action.name && data.action.parameters) {
         <img
           src={logo}
           alt="Heimdall Logo"
-          className="max-w-[500px] max-h-[500px] w-auto h-auto object-contain"
+          className="max-w-[400px] max-h-[400px] w-auto h-auto object-contain"
         />
-        <h1 className="text-5xl font-black text-primary mt-6 tracking-tighter font-display">
+        <h1 className="text-7xl font-black text-primary mt-6 tracking-tighter font-display">
           HEIMDALL
         </h1>
       </div>
