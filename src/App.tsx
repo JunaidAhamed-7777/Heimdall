@@ -51,6 +51,7 @@ import HabitsPage from "./components/HabitsPage";
 import { getDefaultSimulatedDate, getSimulatedDate, getDayLabelFromDate } from "./utils/dateUtils";
 import InfoModal from "./components/InfoModal";
 import SettingsModal from "./components/SettingsModal";
+import { doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
 
 // Helper function to generate an ICS calendar content string
 const generateICSFile = (events: Array<{ title: string; day: string; start_time: string; end_time: string }>): string => {
@@ -1629,6 +1630,38 @@ if (data.action && data.action.name && data.action.parameters) {
     (t) => t && t.day && typeof t.day === "string" && t.day.toLowerCase() === simulatedDay.toLowerCase()
   );
 
+  const handleDeleteAccount = async () => {
+    if (user) {
+      const userDocRef = doc(db, "users", user.uid);
+      await setDoc(userDocRef, {}, { merge: false }); // effectively deletes data? better to delete the document
+      // Actually delete the document
+      const { deleteDoc } = await import("firebase/firestore");
+      await deleteDoc(userDocRef);
+      await signOut(auth);
+      // Clear local state
+      setUser(null);
+      setTasks(INITIAL_TASKS.map(t => ({ ...t, day: getSimulatedDate(t.day) })));
+      setCategories(["General"]);
+      setDeadlines([]);
+      setMotif(INITIAL_MOTIF);
+      setChatMessages([ /* default message */ ]);
+      setHabits([]);
+    }
+  };
+
+  const handleEditCategory = (oldName: string, newName: string) => {
+    if (oldName === newName || newName.trim() === "") return;
+    setCategories(prev => prev.map(c => c === oldName ? newName.trim() : c));
+    // Also update tasks that use this category
+    setTasks(prev => prev.map(t => t.category === oldName ? { ...t, category: newName.trim() } : t));
+  };
+
+  const handleDeleteCategory = (name: string) => {
+    setCategories(prev => prev.filter(c => c !== name));
+    // Optionally reassign tasks to "General"
+    setTasks(prev => prev.map(t => t.category === name ? { ...t, category: "General" } : t));
+  };
+
   if (splashVisible) {
     return (
       <div
@@ -1817,6 +1850,15 @@ if (data.action && data.action.name && data.action.parameters) {
       <SettingsModal
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
+        user={user}
+        categories={categories}
+        onProfileClick={() => {
+          setShowSettings(false);
+          setShowProfileModal(true);
+        }}
+        onDeleteAccount={handleDeleteAccount}
+        onEditCategory={handleEditCategory}
+        onDeleteCategory={handleDeleteCategory}
       />
       <ProfileModal
         isOpen={showProfileModal}
