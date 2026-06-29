@@ -32,11 +32,12 @@ import {
   TrendingUp,
   BarChart3
 } from "lucide-react";
-import { initializeApp } from "firebase/app";
-import { getAuth, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "firebase/auth";
+import { auth } from "./firebase";
 import { TaskItem, ChatMessage, ScheduleBlueprint } from "./types";
 import { INITIAL_TASKS, INITIAL_MOTIF } from "./utils/initialData";
 import WeeklyReport from "./components/WeeklyReport";
+import ProfileModal from "./components/ProfileModal";
 import logo from "../logo.png";
 import Sidebar from "./components/Sidebar";
 import TopBar from "./components/TopBar";
@@ -240,6 +241,28 @@ const [deadlines, setDeadlines] = useState<any[]>(() => {
   // --- App View & Simulation States ---
   const [currentView, setCurrentView] = useState<"protocol" | "chat">("protocol");
   const [simulatedDay, setSimulatedDay] = useState<string>(() => new Date().toISOString().slice(0, 10));
+
+  // --- Google OAuth & User Profile States ---
+  const [user, setUser] = useState<any | null>(null);
+  const [showProfileModal, setShowProfileModal] = useState<boolean>(false);
+
+  // Subscribe to Firebase Auth changes
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        const localOverride = safeStorage.getItem(`heimdall_display_name_${firebaseUser.uid}`);
+        setUser({
+          uid: firebaseUser.uid,
+          displayName: localOverride || firebaseUser.displayName,
+          email: firebaseUser.email,
+          photoURL: firebaseUser.photoURL,
+        });
+      } else {
+        setUser(null);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   // --- Habits & Goals Tracking States ---
   const [habits, setHabits] = useState<any[]>(() => {
@@ -466,13 +489,6 @@ const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: s
   const handleConnectGmail = async () => {
     setApiError(null);
     try {
-      const res = await fetch("/firebase-applet-config.json");
-      if (!res.ok) {
-        throw new Error("Local backend firebase-applet-config.json is not configured yet. Please use the simulated Paste Fallback to test!");
-      }
-      const config = await res.json();
-      const app = initializeApp(config);
-      const auth = getAuth(app);
       const provider = new GoogleAuthProvider();
       provider.addScope("https://www.googleapis.com/auth/gmail.readonly");
       
@@ -492,6 +508,7 @@ const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: s
           setGmailUser(userObj);
           safeStorage.setItem("heimdall_gmail_user", JSON.stringify(userObj));
         }
+
         
         setChatMessages((prev) => [
           ...prev,
@@ -526,6 +543,24 @@ const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: s
       }
     ]);
   };
+
+  // --- Google OAuth Profile Login & Logout Handlers ---
+  const handleProfileLogin = async () => {
+    const provider = new GoogleAuthProvider();
+    await signInWithPopup(auth, provider);
+  };
+
+  const handleProfileLogout = async () => {
+    await signOut(auth);
+  };
+
+  const handleUpdateUserDisplayName = (newName: string) => {
+    if (user) {
+      safeStorage.setItem(`heimdall_display_name_${user.uid}`, newName);
+      setUser((prev: any) => prev ? { ...prev, displayName: newName } : null);
+    }
+  };
+
 
   // Gmail inbox check service scan caller
   const checkGmailInbox = async (explicitToken?: string) => {
@@ -1562,7 +1597,7 @@ if (data.action && data.action.name && data.action.parameters) {
 
     return (
     <div className="dark runic-pattern min-h-screen flex flex-col">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} user={user} onProfileClick={() => setShowProfileModal(true)} />
       <TopBar
         simulatedDay={simulatedDay}
         onDayChange={setSimulatedDay}
@@ -1716,6 +1751,15 @@ if (data.action && data.action.name && data.action.parameters) {
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
       />
+      <ProfileModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        user={user}
+        onLogin={handleProfileLogin}
+        onLogout={handleProfileLogout}
+        onUpdateDisplayName={handleUpdateUserDisplayName}
+      />
+
 
     </div>
   );

@@ -1,11 +1,18 @@
 import logo from "../../logo.png";
+import { User as UserIcon } from "lucide-react";
 
 interface SidebarProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  user: {
+    displayName: string | null;
+    email: string | null;
+    photoURL: string | null;
+  } | null;
+  onProfileClick: () => void;
 }
 
-export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
+export default function Sidebar({ activeTab, setActiveTab, user, onProfileClick }: SidebarProps) {
   const navItems = [
     { id: "agenda", label: "Agenda", icon: "calendar_today" },
     { id: "habits", label: "Habits", icon: "local_fire_department" },
@@ -52,23 +59,48 @@ export default function Sidebar({ activeTab, setActiveTab }: SidebarProps) {
         ))}
       </nav>
 
-      <div className="px-4 mt-auto pb-0">
-        
-        <div className="mt-2 flex items-center gap-3 px-2 py-3 border-t border-outline-variant/30">
-          <div className="w-8 h-8 rounded-full overflow-hidden border border-outline">
-            <img
-              className="w-full h-full object-cover"
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuDnN6Sv6hC3N2MuXyYRgp3p-Xhmp0TdT2K3n63IApCqaBi20wSdaYqOLi87F4eLBB-J2mTWhHKezwotASWsbOCMcM3Kw5fTA-MWRkKJyzFfsOmd3gzBsHCi7Uwo1rJltzmc3pFLnw4hbQ6JL4v7j-O01GSYeVKLvomGHbTNo1JSOD1mnb0dHEC0DjE07uIOwqrg5PRPw4upQIqy9vHvCV5mns0nkWzvSMgxYfoxZn5LrVeg8STpG5IOwn30Zw6MAziFs7s5Z-Zdfa0"
-              alt="Sentinel portrait"
-            />
-          </div>
-          <div>
-            <p className="text-[11px] font-bold">Sentinel 01</p>
-            <p className="text-[9px] text-on-surface-variant">
-              Protocol Level 4
-            </p>
-          </div>
-        </div>
+      <div className="px-4 mt-auto pb-4">
+        <button
+          onClick={onProfileClick}
+          className="w-full mt-2 flex items-center gap-3 px-2 py-3 border-t border-outline-variant/30 text-left hover:bg-surface-variant/30 rounded-lg transition-all cursor-pointer"
+        >
+          {user ? (
+            <>
+              <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-primary shrink-0">
+                {user.photoURL ? (
+                  <img
+                    className="w-full h-full object-cover"
+                    src={user.photoURL}
+                    alt={user.displayName || "User portrait"}
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-surface-variant flex items-center justify-center">
+                    <UserIcon className="w-4 h-4 text-on-surface-variant" />
+                  </div>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-white truncate">{user.displayName || "User"}</p>
+                <p className="text-[10px] text-on-surface-variant truncate">
+                  {user.email || ""}
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="w-9 h-9 rounded-full bg-surface-variant/40 flex items-center justify-center shrink-0 border border-outline/30">
+                <UserIcon className="w-4 h-4 text-on-surface-variant" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-bold text-white truncate">Guest</p>
+                <p className="text-[9px] text-primary font-bold tracking-tight animate-pulse uppercase">
+                  Sign In To Save Your Data
+                </p>
+              </div>
+            </>
+          )}
+        </button>
       </div>
     </aside>
   );
