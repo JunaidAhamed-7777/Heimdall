@@ -1252,6 +1252,18 @@ const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: s
     });
   };
 
+  const handleDeleteDeadline = (deadlineId: string) => {
+    const deadline = deadlines.find((d: any) => d.id === deadlineId);
+    if (!deadline) return;
+    setConfirmModal({
+      isOpen: true,
+      itemName: deadline.name,
+      onConfirm: () => {
+        setDeadlines((prev: any[]) => prev.filter((d: any) => d.id !== deadlineId));
+      },
+    });
+  };
+
   const handleResetSchedule = () => {
     if (safeConfirm("Reset current timetable back to original recommended Heimdall framework? Note: This deletes custom edits.")) {
       setTasks(INITIAL_TASKS);
@@ -1574,7 +1586,7 @@ if (data.action && data.action.name && data.action.parameters) {
             onAddCategory={(cat) => setCategories(prev => [...prev, cat])}
             deadlines={deadlines}
             onAddDeadline={(name, date) => setDeadlines(prev => [...prev, { id: 'deadline-' + Date.now(), name, date }])}
-            onRemoveDeadline={(id) => setDeadlines(prev => prev.filter(d => d.id !== id))}
+            onRemoveDeadline={handleDeleteDeadline}
           />
         )}
 
