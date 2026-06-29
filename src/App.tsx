@@ -46,6 +46,7 @@ import AdvisorTab from "./components/AdvisorTab";
 import MobileBottomNav from "./components/MobileBottomNav";
 import ConfirmModal from "./components/ConfirmModal";
 import HabitsPage from "./components/HabitsPage";
+import { generateWeekDates, getDefaultSimulatedDate, getSimulatedDate, getDayLabelFromDate } from "./utils/dateUtils";
 
 // Helper function to generate an ICS calendar content string
 const generateICSFile = (events: Array<{ title: string; day: string; start_time: string; end_time: string }>): string => {
@@ -118,19 +119,29 @@ const safeConfirm = (message: string): boolean => {
   }
   return true; // Bypass confirmation in highly secure sandbox frames
 };
-
 export default function App() {
-  // --- Persistent States (backed by safe localStorage) ---
-  const [tasks, setTasks] = useState<TaskItem[]>(() => {
-    try {
-      const saved = safeStorage.getItem("heimdall_tasks");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
+const [tasks, setTasks] = useState<TaskItem[]>(() => {
+  try {
+    const saved = safeStorage.getItem("heimdall_tasks");
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        return parsed.map((t: TaskItem) => ({
+          ...t,
+          // If day is an old weekday string, convert it to a date
+          day: (typeof t.day === "string" && !t.day.match(/^\d{4}-\d{2}-\d{2}$/))
+            ? getSimulatedDate(t.day)
+            : t.day,
+        }));
       }
-    } catch {}
-    return INITIAL_TASKS;
-  });
+    }
+  } catch {}
+  // Convert initial tasks from weekday names to dates
+  return INITIAL_TASKS.map((t) => ({
+    ...t,
+    day: getSimulatedDate(t.day),
+  }));
+});
 
   const [motif, setMotif] = useState<string>(() => {
     try {
@@ -161,8 +172,8 @@ export default function App() {
 
   // --- App View & Simulation States ---
   const [currentView, setCurrentView] = useState<"protocol" | "chat">("protocol");
-  const [simulatedDay, setSimulatedDay] = useState<string>("Wednesday");
-  const [allDaysList] = useState<string[]>(["Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday", "Monday"]);
+  const [simulatedDay, setSimulatedDay] = useState<string>(getDefaultSimulatedDate());
+  const [allDaysList] = useState<string[]>(generateWeekDates("2026-06-23"));
 
   // --- Habits & Goals Tracking States ---
   const [habits, setHabits] = useState<any[]>(() => {
@@ -267,18 +278,7 @@ const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; itemName: st
   const [pasteBody, setPasteBody] = useState<string>("");
 
   // Helper: map a date (e.g. "2026-06-23") back to simulated day label
-  const getDayLabelFromDate = (dateStr: string): string => {
-    const mapping: { [key: string]: string } = {
-      "2026-06-23": "Tuesday",
-      "2026-06-24": "Wednesday",
-      "2026-06-25": "Thursday",
-      "2026-06-26": "Friday",
-      "2026-06-27": "Saturday",
-      "2026-06-28": "Sunday",
-      "2026-06-29": "Monday",
-    };
-    return mapping[dateStr] || "Wednesday";
-  };
+  
 
   // Helper: check if two hourly ranges overlap
   const checkTimeOverlap = (rangeA: string, rangeB: string): boolean => {
@@ -599,18 +599,7 @@ const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: s
   }, [simulatedDay]);
 
   // --- Habits & Goals Tracking Core Engines ---
-  const getSimulatedDate = (day: string): string => {
-    const mapping: { [key: string]: string } = {
-      "Tuesday": "2026-06-23",
-      "Wednesday": "2026-06-24",
-      "Thursday": "2026-06-25",
-      "Friday": "2026-06-26",
-      "Saturday": "2026-06-27",
-      "Sunday": "2026-06-28",
-      "Monday": "2026-06-29"
-    };
-    return mapping[day] || "2026-06-23";
-  };
+  
 
   const getSimulatedDateIndex = (dateStr: string): number => {
     const dates = [
@@ -666,7 +655,7 @@ const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: s
       duration_minutes: durMinutes || 10,
       streak: 0,
       history: [],
-      createdAt: getSimulatedDate(simulatedDay)
+      createdAt: simulatedDay
     };
 
     setHabits(prev => {
@@ -701,7 +690,7 @@ const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: s
   // 2. Log Habit Completion
   const executeLogHabit = (habitIdOrName: string, dateStr?: string) => {
     if (!habitIdOrName || typeof habitIdOrName !== "string") return;
-    const targetDate = dateStr || getSimulatedDate(simulatedDay);
+    const targetDate = dateStr || simulatedDay;
     let habitToCelebrate: any = null;
 
     setHabits(prev => {
@@ -764,7 +753,7 @@ const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: s
 
 // 3. Check Habit Status (queries status for nudges)
    const executeCheckHabitStatus = (daysToCheck: number = 3) => {
-     const todayDateStr = getSimulatedDate(simulatedDay);
+     const todayDateStr = simulatedDay;
      const todayIdx = getSimulatedDateIndex(todayDateStr);
 
      const reports = habitsRef.current.map(h => {
@@ -1106,7 +1095,8 @@ const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: s
       executeCheckDriveDocuments();
       
       // Offer weekly report on Sundays if not already offered today
-      if (newDay === "Sunday" && !weeklyReportOffered) {
+      const dayOfWeek = new Date(newDay + "T12:00:00").toLocaleDateString("en-US", { weekday: "long" });
+      if (dayOfWeek === "Sunday" && !weeklyReportOffered) {
         setWeeklyReportOffered(true);
         setTimeout(() => {
           setChatMessages(prev => [

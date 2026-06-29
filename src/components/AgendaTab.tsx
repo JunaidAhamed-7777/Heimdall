@@ -6,6 +6,7 @@ import {
   Info
 } from "lucide-react";
 import { INITIAL_TASKS, INITIAL_MOTIF } from "../utils/initialData";
+import DatePicker from "./DatePicker";
 
 interface AgendaTabProps {
   tasks: TaskItem[];
@@ -46,7 +47,7 @@ export default function AgendaTab({
   const [isLoadingRegen, setIsLoadingRegen] = useState(false);
 
   const filteredTasks = tasks.filter(
-    (t) => t && t.day && typeof t.day === "string" && t.day.toLowerCase() === simulatedDay.toLowerCase()
+    (t) => t && t.day === simulatedDay
   );
 
   const getCategoryTheme = (cat: string) => {
@@ -127,9 +128,11 @@ export default function AgendaTab({
                 </div>
                 <div>
                   <label className="text-xs font-mono text-on-surface-variant">Day</label>
-                  <select value={newTaskDay} onChange={(e) => setNewTaskDay(e.target.value)} className="w-full bg-surface border border-outline-variant rounded px-2 py-1 text-xs text-on-surface">
-                    {allDaysList.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
+                  <DatePicker
+                    selectedDate={newTaskDay}
+                    onDateChange={setNewTaskDay}
+                    availableDates={allDaysList}
+                  />
                 </div>
                 <div>
                   <label className="text-xs font-mono text-on-surface-variant">Time Range</label>

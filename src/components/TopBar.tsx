@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Bell, Settings } from "lucide-react";
 import DaySelector from "./DaySelector";
+import DatePicker from "./DatePicker";
 
 interface TopBarProps {
   simulatedDay: string;
@@ -65,10 +66,10 @@ export default function TopBar({ simulatedDay, onDayChange, allDaysList }: TopBa
 
         {/* Right side: day selector, icons */}
         <div className="flex items-center gap-4">
-          <DaySelector
-            selectedDay={simulatedDay}
-            allDays={allDaysList}
-            onChange={onDayChange}
+          <DatePicker
+            selectedDate={simulatedDay}
+            onDateChange={onDayChange}
+            availableDates={allDaysList}
           />
           <button className="material-symbols-outlined text-on-surface-variant hover:text-primary cursor-pointer">
             notifications
