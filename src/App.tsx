@@ -46,7 +46,7 @@ import AdvisorTab from "./components/AdvisorTab";
 import MobileBottomNav from "./components/MobileBottomNav";
 import ConfirmModal from "./components/ConfirmModal";
 import HabitsPage from "./components/HabitsPage";
-import { generateWeekDates, getDefaultSimulatedDate, getSimulatedDate, getDayLabelFromDate } from "./utils/dateUtils";
+import { getDefaultSimulatedDate, getSimulatedDate, getDayLabelFromDate } from "./utils/dateUtils";
 
 // Helper function to generate an ICS calendar content string
 const generateICSFile = (events: Array<{ title: string; day: string; start_time: string; end_time: string }>): string => {
@@ -172,8 +172,7 @@ const [tasks, setTasks] = useState<TaskItem[]>(() => {
 
   // --- App View & Simulation States ---
   const [currentView, setCurrentView] = useState<"protocol" | "chat">("protocol");
-  const [simulatedDay, setSimulatedDay] = useState<string>(getDefaultSimulatedDate());
-  const [allDaysList] = useState<string[]>(generateWeekDates("2026-06-23"));
+  const [simulatedDay, setSimulatedDay] = useState<string>(() => new Date().toISOString().slice(0, 10));
 
   // --- Habits & Goals Tracking States ---
   const [habits, setHabits] = useState<any[]>(() => {
@@ -1504,15 +1503,12 @@ if (data.action && data.action.name && data.action.parameters) {
       <TopBar
         simulatedDay={simulatedDay}
         onDayChange={setSimulatedDay}
-        allDaysList={allDaysList}
       />
       <main className="pt-16 pb-12 px-container-padding md:ml-52 transition-all duration-300">
         {activeTab === "agenda" && (
           <AgendaTab
             tasks={tasks}
             simulatedDay={simulatedDay}
-            allDaysList={allDaysList}
-            onDayChange={setSimulatedDay}
             onToggleTask={handleToggleTask}
             onDeleteTask={handleDeleteTask}
             onAddTask={(task) => setTasks(prev => [...prev, task])}

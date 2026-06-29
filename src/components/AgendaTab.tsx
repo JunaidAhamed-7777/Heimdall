@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { TaskItem } from "../types";
 import {
   Plus, Calendar, Clock, BookOpen, Presentation, Stethoscope, Coffee, Check,
@@ -11,8 +11,6 @@ import DatePicker from "./DatePicker";
 interface AgendaTabProps {
   tasks: TaskItem[];
   simulatedDay: string;
-  allDaysList: string[];
-  onDayChange: (day: string) => void;
   onToggleTask: (id: string) => void;
   onDeleteTask: (id: string) => void;
   onAddTask: (task: TaskItem) => void;
@@ -26,7 +24,7 @@ interface AgendaTabProps {
 }
 
 export default function AgendaTab({
-  tasks, simulatedDay, allDaysList, onDayChange,
+  tasks, simulatedDay,
   onToggleTask, onDeleteTask, onAddTask, onResetSchedule,
   habits, onAddHabit, onLogHabit, onRemoveHabit,
   onRegenerateSchedule
@@ -45,6 +43,10 @@ export default function AgendaTab({
   const [newHabitDur, setNewHabitDur] = useState(10);
   const [rawPromptInput, setRawPromptInput] = useState("");
   const [isLoadingRegen, setIsLoadingRegen] = useState(false);
+
+  useEffect(() => {
+    setNewTaskDay(simulatedDay);
+  }, [simulatedDay]);
 
   const filteredTasks = tasks.filter(
     (t) => t && t.day === simulatedDay
@@ -131,7 +133,6 @@ export default function AgendaTab({
                   <DatePicker
                     selectedDate={newTaskDay}
                     onDateChange={setNewTaskDay}
-                    availableDates={allDaysList}
                   />
                 </div>
                 <div>
