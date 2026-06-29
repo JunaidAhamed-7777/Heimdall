@@ -326,7 +326,7 @@ export default function AgendaTab({
                     return (
                       <div key={deadline.id} className="bg-surface/50 border border-outline-variant/50 p-3 rounded group relative flex justify-between items-start">
                         <div>
-                          <h4 className="font-headline-sm text-on-surface font-bold text-sm tracking-tight">## {deadline.name}</h4>
+                          <h4 className="font-headline-sm text-on-surface font-bold text-sm tracking-tight">{deadline.name}</h4>
                           <p className="text-lg font-mono text-error font-medium mt-0.5">{timeRemaining}</p>
                           <p className="text-[10px] text-on-surface-variant font-mono mt-0.5">Due on {formattedDate}</p>
                         </div>
