@@ -11,6 +11,7 @@ import DatePicker from "./DatePicker";
 interface AgendaTabProps {
   tasks: TaskItem[];
   simulatedDay: string;
+  onDayChange: (day: string) => void;
   onToggleTask: (id: string) => void;
   onDeleteTask: (id: string) => void;
   onAddTask: (task: TaskItem) => void;
@@ -29,7 +30,7 @@ interface AgendaTabProps {
 }
 
 export default function AgendaTab({
-  tasks, simulatedDay,
+  tasks, simulatedDay, onDayChange,
   onToggleTask, onDeleteTask, onAddTask, onResetSchedule,
   habits, onAddHabit, onLogHabit, onRemoveHabit,
   onRegenerateSchedule,

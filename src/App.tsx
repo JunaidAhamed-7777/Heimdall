@@ -1714,7 +1714,8 @@ if (data.action && data.action.name && data.action.parameters) {
         {activeTab === "agenda" && (
           <AgendaTab
             tasks={tasks}
-            simulatedDay={simulatedDay}
+            simulatedDay={simulatedDay} 
+            onDayChange={setSimulatedDay}
             onToggleTask={handleToggleTask}
             onDeleteTask={handleDeleteTask}
             onAddTask={(task) => setTasks(prev => [...prev, task])}
