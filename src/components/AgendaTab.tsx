@@ -129,7 +129,7 @@ export default function AgendaTab({
                   <input value={newTaskName} onChange={(e) => setNewTaskName(e.target.value)} className="w-full bg-surface border border-outline-variant rounded px-2 py-1 text-xs text-on-surface focus:border-primary" />
                 </div>
                 <div>
-                  <label className="text-xs font-mono text-on-surface-variant">Day</label>
+                  <label className="text-xs font-mono text-on-surface-variant"></label>
                   <DatePicker
                     selectedDate={newTaskDay}
                     onDateChange={setNewTaskDay}
