@@ -195,6 +195,23 @@ const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => [
   const [user, setUser] = useState<any | null>(null);
   const [showProfileModal, setShowProfileModal] = useState<boolean>(false);
   const [isDataLoading, setIsDataLoading] = useState<boolean>(true);
+  const [splashVisible, setSplashVisible] = useState(true);
+  const [splashFading, setSplashFading] = useState(false);
+
+  useEffect(() => {
+    const fadeStartTimer = setTimeout(() => {
+      setSplashFading(true);
+    }, 750);
+
+    const removeTimer = setTimeout(() => {
+      setSplashVisible(false);
+    }, 1000);
+
+    return () => {
+      clearTimeout(fadeStartTimer);
+      clearTimeout(removeTimer);
+    };
+  }, []);
 
   // Subscribe to Firebase Auth changes and fetch user data from Firestore
   useEffect(() => {
@@ -1611,6 +1628,25 @@ if (data.action && data.action.name && data.action.parameters) {
   const filteredTasks = tasks.filter(
     (t) => t && t.day && typeof t.day === "string" && t.day.toLowerCase() === simulatedDay.toLowerCase()
   );
+
+  if (splashVisible) {
+    return (
+      <div
+        className={`fixed inset-0 z-[100] bg-black flex flex-col items-center justify-center transition-opacity duration-300 ${
+          splashFading ? "opacity-0" : "opacity-100"
+        }`}
+      >
+        <img
+          src={logo}
+          alt="Heimdall Logo"
+          className="max-w-[500px] max-h-[500px] w-auto h-auto object-contain"
+        />
+        <h1 className="text-5xl font-black text-primary mt-6 tracking-tighter font-display">
+          HEIMDALL
+        </h1>
+      </div>
+    );
+  }
 
   if (isDataLoading) {
     return (
