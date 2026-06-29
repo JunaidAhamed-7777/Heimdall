@@ -1617,7 +1617,7 @@ if (data.action && data.action.name && data.action.parameters) {
       <div className="dark runic-pattern min-h-screen bg-surface flex flex-col items-center justify-center text-center p-6">
         <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4 shadow-lg shadow-primary/20"></div>
         <p className="font-mono text-xs text-primary uppercase tracking-widest animate-pulse">Contacting Bifrost...</p>
-        <p className="text-[10px] text-on-surface-variant uppercase tracking-wider mt-1">Synchronizing your safe Asgardian data</p>
+        <p className="text-[10px] text-on-surface-variant uppercase tracking-wider mt-1">Synchronizing Your Protected Data</p>
       </div>
     );
   }
