@@ -1,20 +1,20 @@
 import { useState, useRef, useEffect } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, ChevronDown } from "lucide-react";
-import { getDefaultSimulatedDate } from "../utils/dateUtils";
 
 interface DatePickerProps {
   selectedDate: string; // YYYY-MM-DD
   onDateChange: (date: string) => void;
-  availableDates: string[];
 }
 
-export default function DatePicker({ selectedDate, onDateChange, availableDates }: DatePickerProps) {
+export default function DatePicker({ selectedDate, onDateChange }: DatePickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Initialize current month view based on selectedDate or default simulated date
+  const getSystemToday = () => new Date().toISOString().slice(0, 10);
+
+  // Initialize current month view based on selectedDate or today's date
   const [viewDate, setViewDate] = useState(() => {
-    const initStr = selectedDate && selectedDate.match(/^\d{4}-\d{2}-\d{2}$/) ? selectedDate : getDefaultSimulatedDate();
+    const initStr = selectedDate && selectedDate.match(/^\d{4}-\d{2}-\d{2}$/) ? selectedDate : getSystemToday();
     const [y, m] = initStr.split("-").map(Number);
     return new Date(y, m - 1, 1);
   });
@@ -53,12 +53,18 @@ export default function DatePicker({ selectedDate, onDateChange, availableDates 
 
   const handlePrevMonth = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+    setViewDate(prev => {
+      if (prev.getFullYear() <= 2025 && prev.getMonth() === 0) return prev;
+      return new Date(prev.getFullYear(), prev.getMonth() - 1, 1);
+    });
   };
 
   const handleNextMonth = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+    setViewDate(prev => {
+      if (prev.getFullYear() >= 2035 && prev.getMonth() === 11) return prev;
+      return new Date(prev.getFullYear(), prev.getMonth() + 1, 1);
+    });
   };
 
   const year = viewDate.getFullYear();
@@ -68,8 +74,11 @@ export default function DatePicker({ selectedDate, onDateChange, availableDates 
   const firstDayIndex = new Date(year, month, 1).getDay(); // 0 = Sun
   const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  const simulatedToday = getDefaultSimulatedDate();
+  const realToday = getSystemToday();
   const dayHeaders = ["S", "M", "T", "W", "T", "F", "S"];
+
+  const canPrev = !(year <= 2025 && month === 0);
+  const canNext = !(year >= 2035 && month === 11);
 
   return (
     <div ref={ref} className="relative inline-block w-44">
@@ -91,8 +100,9 @@ export default function DatePicker({ selectedDate, onDateChange, availableDates 
           <div className="flex items-center justify-between mb-3 pb-2 border-b border-outline-variant/60">
             <button
               type="button"
+              disabled={!canPrev}
               onClick={handlePrevMonth}
-              className="p-1 rounded-md hover:bg-primary/20 text-on-surface-variant hover:text-primary transition-colors cursor-pointer"
+              className={`p-1 rounded-md transition-colors ${canPrev ? "hover:bg-primary/20 text-on-surface-variant hover:text-primary cursor-pointer" : "opacity-30 cursor-not-allowed text-on-surface-variant"}`}
               title="Previous Month"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -102,8 +112,9 @@ export default function DatePicker({ selectedDate, onDateChange, availableDates 
             </span>
             <button
               type="button"
+              disabled={!canNext}
               onClick={handleNextMonth}
-              className="p-1 rounded-md hover:bg-primary/20 text-on-surface-variant hover:text-primary transition-colors cursor-pointer"
+              className={`p-1 rounded-md transition-colors ${canNext ? "hover:bg-primary/20 text-on-surface-variant hover:text-primary cursor-pointer" : "opacity-30 cursor-not-allowed text-on-surface-variant"}`}
               title="Next Month"
             >
               <ChevronRight className="w-4 h-4" />
@@ -136,8 +147,8 @@ export default function DatePicker({ selectedDate, onDateChange, availableDates 
               const dayNum = idx + 1;
               const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}`;
               const isSelected = dateStr === selectedDate;
-              const isAvailable = availableDates.includes(dateStr);
-              const isToday = dateStr === simulatedToday;
+              const isAvailable = dateStr >= "2025-01-01" && dateStr <= "2035-12-31";
+              const isToday = dateStr === realToday;
               const dayOfWeek = new Date(year, month, dayNum).getDay();
               const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
@@ -147,6 +158,7 @@ export default function DatePicker({ selectedDate, onDateChange, availableDates 
                   type="button"
                   disabled={!isAvailable}
                   onClick={() => {
+                    if (!isAvailable) return;
                     onDateChange(dateStr);
                     setIsOpen(false);
                   }}
@@ -159,10 +171,10 @@ export default function DatePicker({ selectedDate, onDateChange, availableDates 
                         }`
                       : "cursor-not-allowed opacity-25 text-on-surface-variant bg-transparent"
                   }`}
-                  title={isAvailable ? formatDateTrigger(dateStr) : "Outside protocol date range"}
+                  title={isAvailable ? formatDateTrigger(dateStr) : "Outside protocol date range (2025-2035)"}
                 >
                   <span>{dayNum}</span>
-                  {/* Gold indicator ring for today's simulated date */}
+                  {/* Gold indicator ring for today's system date */}
                   {isToday && !isSelected && (
                     <span className="absolute inset-0 rounded-md border border-primary/80 pointer-events-none animate-pulse" />
                   )}
@@ -175,7 +187,7 @@ export default function DatePicker({ selectedDate, onDateChange, availableDates 
           <div className="mt-3 pt-2 border-t border-outline-variant/40 flex items-center justify-between text-[9px] font-label-caps text-on-surface-variant tracking-wider">
             <div className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-sm border border-primary/80 inline-block" />
-              <span>Simulated Today</span>
+              <span>Today</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-sm bg-primary inline-block" />

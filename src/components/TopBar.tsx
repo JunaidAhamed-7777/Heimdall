@@ -1,15 +1,13 @@
 import { useState, useEffect } from "react";
 import { Bell, Settings } from "lucide-react";
-import DaySelector from "./DaySelector";
 import DatePicker from "./DatePicker";
 
 interface TopBarProps {
   simulatedDay: string;
   onDayChange: (day: string) => void;
-  allDaysList: string[];
 }
 
-export default function TopBar({ simulatedDay, onDayChange, allDaysList }: TopBarProps) {
+export default function TopBar({ simulatedDay, onDayChange }: TopBarProps) {
   const [isOnline, setIsOnline] = useState<boolean>(true);
 
   // Check actual connectivity by pinging a reliable endpoint
@@ -69,7 +67,6 @@ export default function TopBar({ simulatedDay, onDayChange, allDaysList }: TopBa
           <DatePicker
             selectedDate={simulatedDay}
             onDateChange={onDayChange}
-            availableDates={allDaysList}
           />
           <button className="material-symbols-outlined text-on-surface-variant hover:text-primary cursor-pointer">
             notifications
