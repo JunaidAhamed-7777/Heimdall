@@ -47,6 +47,7 @@ import MobileBottomNav from "./components/MobileBottomNav";
 import ConfirmModal from "./components/ConfirmModal";
 import HabitsPage from "./components/HabitsPage";
 import { getDefaultSimulatedDate, getSimulatedDate, getDayLabelFromDate } from "./utils/dateUtils";
+import InfoModal from "./components/InfoModal";
 
 // Helper function to generate an ICS calendar content string
 const generateICSFile = (events: Array<{ title: string; day: string; start_time: string; end_time: string }>): string => {
@@ -120,6 +121,29 @@ const safeConfirm = (message: string): boolean => {
   return true; // Bypass confirmation in highly secure sandbox frames
 };
 export default function App() {
+
+  const [infoModal, setInfoModal] = useState<{ isOpen: boolean; title: string; body: string }>({
+    isOpen: false,
+    title: "",
+    body: "",
+  });
+
+  const openPrivacyPolicy = () => {
+    setInfoModal({
+      isOpen: true,
+      title: "Privacy Policy",
+      body: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
+    });
+  };
+
+  const openSupport = () => {
+    setInfoModal({
+      isOpen: true,
+      title: "Support",
+      body: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
+    });
+  };
+
 const [tasks, setTasks] = useState<TaskItem[]>(() => {
   try {
     const saved = safeStorage.getItem("heimdall_tasks");
@@ -1613,10 +1637,20 @@ if (data.action && data.action.name && data.action.parameters) {
       <MobileBottomNav activeTab={activeTab} setActiveTab={setActiveTab} />
       <footer className="md:ml-52 border-t border-outline-variant bg-surface px-container-padding py-2 relative z-10">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-          <span className="font-label-caps text-label-caps text-on-surface-variant">By Junaid</span>
+          <span className="font-label-caps text-label-caps text-on-surface-variant">Built By Junaid</span>
           <div className="flex gap-8">
-            <a className="font-label-caps text-label-caps text-on-surface-variant hover:text-primary transition-colors" href="#">Privacy Policy</a>
-            <a className="font-label-caps text-label-caps text-on-surface-variant hover:text-primary transition-colors" href="#">Support</a>
+            <button
+              onClick={openPrivacyPolicy}
+              className="font-label-caps text-label-caps text-on-surface-variant hover:text-primary transition-colors cursor-pointer"
+            >
+              Privacy Policy
+            </button>
+            <button
+              onClick={openSupport}
+              className="font-label-caps text-label-caps text-on-surface-variant hover:text-primary transition-colors cursor-pointer"
+            >
+              Support
+            </button>
           </div>
         </div>
       </footer>
@@ -1626,6 +1660,13 @@ if (data.action && data.action.name && data.action.parameters) {
         onClose={() => setConfirmModal({ isOpen: false, itemName: "", onConfirm: null })}
         onConfirm={confirmModal.onConfirm || (() => {})}
       />
+      <InfoModal
+        isOpen={infoModal.isOpen}
+        onClose={() => setInfoModal({ isOpen: false, title: "", body: "" })}
+        title={infoModal.title}
+      >
+        <p>{infoModal.body}</p>
+      </InfoModal>
     </div>
   );
 }
