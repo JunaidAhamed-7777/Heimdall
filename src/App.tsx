@@ -1656,7 +1656,7 @@ if (data.action && data.action.name && data.action.parameters) {
           alt="Heimdall Logo"
           className="logo-flash w-24 h-24 mb-4 object-contain"
         />
-        <p className="font-mono text-xs text-primary uppercase tracking-widest animate-pulse">Contacting Bifrost...</p>
+        <p className="font-mono text-xs text-primary uppercase tracking-widest logo-flash">Contacting Bifrost...</p>
         <p className="text-[10px] text-on-surface-variant uppercase tracking-wider mt-1">Synchronizing Your Protected Data</p>
       </div>
     );
