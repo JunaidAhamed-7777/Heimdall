@@ -33,7 +33,8 @@ import {
   BarChart3
 } from "lucide-react";
 import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "firebase/auth";
-import { auth } from "./firebase";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { auth, db } from "./firebase";
 import { TaskItem, ChatMessage, ScheduleBlueprint } from "./types";
 import { INITIAL_TASKS, INITIAL_MOTIF } from "./utils/initialData";
 import WeeklyReport from "./components/WeeklyReport";
@@ -167,76 +168,24 @@ export default function App() {
   };
 
 const [tasks, setTasks] = useState<TaskItem[]>(() => {
-  try {
-    const saved = safeStorage.getItem("heimdall_tasks");
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed)) {
-        return parsed.map((t: TaskItem) => ({
-          ...t,
-          // If day is an old weekday string, convert it to a date
-          day: (typeof t.day === "string" && !t.day.match(/^\d{4}-\d{2}-\d{2}$/))
-            ? getSimulatedDate(t.day)
-            : t.day,
-        }));
-      }
-    }
-  } catch {}
-  // Convert initial tasks from weekday names to dates
   return INITIAL_TASKS.map((t) => ({
     ...t,
     day: getSimulatedDate(t.day),
   }));
 });
 
-const [categories, setCategories] = useState<string[]>(() => {
-  try {
-    const saved = safeStorage.getItem("heimdall_categories");
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-    }
-  } catch {}
-  return ["General"];
-});
+const [categories, setCategories] = useState<string[]>(["General"]);
+const [deadlines, setDeadlines] = useState<any[]>([]);
+const [motif, setMotif] = useState<string>(INITIAL_MOTIF);
 
-const [deadlines, setDeadlines] = useState<any[]>(() => {
-  try {
-    const saved = safeStorage.getItem("heimdall_deadlines");
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed)) return parsed;
-    }
-  } catch {}
-  return [];
-});
-
-  const [motif, setMotif] = useState<string>(() => {
-    try {
-      const saved = safeStorage.getItem("heimdall_motif");
-      return saved || INITIAL_MOTIF;
-    } catch {
-      return INITIAL_MOTIF;
-    }
-  });
-
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => {
-    try {
-      const saved = safeStorage.getItem("heimdall_chat");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) return parsed;
-      }
-    } catch {}
-    return [
-      {
-        id: "msg-1",
-        role: "model",
-        content: "Hello! I am Heimdall, your executive productivity advisor. I keep an eye on your Gmail for any confirmations — bookings, registrations, appointments — so I can automatically add them to your calendar. You can also discuss rescheduling, request advice, or update your progress. Let's bypass stress with precise execution.",
-        timestamp: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
-      }
-    ];
-  });
+const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => [
+  {
+    id: "msg-1",
+    role: "model",
+    content: "Hello! I am Heimdall, your executive productivity advisor. I keep an eye on your Gmail for any confirmations — bookings, registrations, appointments — so I can automatically add them to your calendar. You can also discuss rescheduling, request advice, or update your progress. Let's bypass stress with precise execution.",
+    timestamp: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+  }
+]);
 
   // --- App View & Simulation States ---
   const [currentView, setCurrentView] = useState<"protocol" | "chat">("protocol");
@@ -245,36 +194,116 @@ const [deadlines, setDeadlines] = useState<any[]>(() => {
   // --- Google OAuth & User Profile States ---
   const [user, setUser] = useState<any | null>(null);
   const [showProfileModal, setShowProfileModal] = useState<boolean>(false);
+  const [isDataLoading, setIsDataLoading] = useState<boolean>(true);
 
-  // Subscribe to Firebase Auth changes
+  // Subscribe to Firebase Auth changes and fetch user data from Firestore
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const localOverride = safeStorage.getItem(`heimdall_display_name_${firebaseUser.uid}`);
-        setUser({
-          uid: firebaseUser.uid,
-          displayName: localOverride || firebaseUser.displayName,
-          email: firebaseUser.email,
-          photoURL: firebaseUser.photoURL,
-        });
+        setIsDataLoading(true);
+        try {
+          const userDocRef = doc(db, "users", firebaseUser.uid);
+          const userDoc = await getDoc(userDocRef);
+          
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            if (data.tasks) {
+              setTasks(data.tasks.map((t: TaskItem) => ({
+                ...t,
+                day: (typeof t.day === "string" && !t.day.match(/^\d{4}-\d{2}-\d{2}$/))
+                  ? getSimulatedDate(t.day)
+                  : t.day,
+              })));
+            } else {
+              setTasks(INITIAL_TASKS.map((t) => ({ ...t, day: getSimulatedDate(t.day) })));
+            }
+            if (data.categories) setCategories(data.categories);
+            if (data.deadlines) setDeadlines(data.deadlines);
+            if (data.motif) setMotif(data.motif);
+            if (data.chatMessages) setChatMessages(data.chatMessages);
+            if (data.habits) setHabits(data.habits);
+            
+            setUser({
+              uid: firebaseUser.uid,
+              displayName: data.displayName || firebaseUser.displayName,
+              email: firebaseUser.email,
+              photoURL: firebaseUser.photoURL,
+            });
+          } else {
+            // New user: onboarding current local/default state to their profile!
+            const defaultTasks = INITIAL_TASKS.map((t) => ({ ...t, day: getSimulatedDate(t.day) }));
+            const defaultChat = [
+              {
+                id: "msg-1",
+                role: "model",
+                content: "Hello! I am Heimdall, your executive productivity advisor. I keep an eye on your Gmail for any confirmations — bookings, registrations, appointments — so I can automatically add them to your calendar. You can also discuss rescheduling, request advice, or update your progress. Let's bypass stress with precise execution.",
+                timestamp: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+              }
+            ];
+            
+            const initialData = {
+              tasks: defaultTasks,
+              categories: ["General"],
+              deadlines: [],
+              motif: INITIAL_MOTIF,
+              chatMessages: defaultChat,
+              habits: [],
+              displayName: firebaseUser.displayName,
+              updatedAt: new Date().toISOString()
+            };
+            
+            await setDoc(userDocRef, initialData);
+            
+            setTasks(defaultTasks);
+            setCategories(["General"]);
+            setDeadlines([]);
+            setMotif(INITIAL_MOTIF);
+            setChatMessages(defaultChat);
+            setHabits([]);
+            
+            setUser({
+              uid: firebaseUser.uid,
+              displayName: firebaseUser.displayName,
+              email: firebaseUser.email,
+              photoURL: firebaseUser.photoURL,
+            });
+          }
+        } catch (error) {
+          console.error("Error loading user data from Firestore:", error);
+          // Fallback to defaults
+          setUser({
+            uid: firebaseUser.uid,
+            displayName: firebaseUser.displayName,
+            email: firebaseUser.email,
+            photoURL: firebaseUser.photoURL,
+          });
+        } finally {
+          setIsDataLoading(false);
+        }
       } else {
+        // Clear state on logout and set to default guest state
+        setTasks(INITIAL_TASKS.map((t) => ({ ...t, day: getSimulatedDate(t.day) })));
+        setCategories(["General"]);
+        setDeadlines([]);
+        setMotif(INITIAL_MOTIF);
+        setChatMessages([
+          {
+            id: "msg-1",
+            role: "model",
+            content: "Hello! I am Heimdall, your executive productivity advisor. I keep an eye on your Gmail for any confirmations — bookings, registrations, appointments — so I can automatically add them to your calendar. You can also discuss rescheduling, request advice, or update your progress. Let's bypass stress with precise execution.",
+            timestamp: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+          }
+        ]);
+        setHabits([]);
         setUser(null);
+        setIsDataLoading(false);
       }
     });
     return () => unsubscribe();
   }, []);
 
   // --- Habits & Goals Tracking States ---
-  const [habits, setHabits] = useState<any[]>(() => {
-  try {
-    const saved = safeStorage.getItem("heimdall_habits");
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed)) return parsed;
-    }
-  } catch {}
-  return []; // ← now empty
-});
+  const [habits, setHabits] = useState<any[]>([]);
   const [streakBadgeAlert, setStreakBadgeAlert] = useState<{ habitName: string; streak: number } | null>(null);
   const [showAddHabitForm, setShowAddHabitForm] = useState<boolean>(false);
   const [newHabitName, setNewHabitName] = useState<string>("");
@@ -556,7 +585,6 @@ const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: s
 
   const handleUpdateUserDisplayName = (newName: string) => {
     if (user) {
-      safeStorage.setItem(`heimdall_display_name_${user.uid}`, newName);
       setUser((prev: any) => prev ? { ...prev, displayName: newName } : null);
     }
   };
@@ -649,30 +677,24 @@ const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: s
   const [newTaskCategory, setNewTaskCategory] = useState<string>("General");
   const [newTaskDesc, setNewTaskDesc] = useState<string>("");
 
-  // Sync to localStorage on change safely
+  // Sync to Firestore in real-time when authenticated and data is loaded
   useEffect(() => {
-    safeStorage.setItem("heimdall_tasks", JSON.stringify(tasks));
-  }, [tasks]);
+    if (isDataLoading || !user) return;
 
-  useEffect(() => {
-    safeStorage.setItem("heimdall_motif", motif);
-  }, [motif]);
-
-  useEffect(() => {
-    safeStorage.setItem("heimdall_chat", JSON.stringify(chatMessages));
-  }, [chatMessages]);
-
-  useEffect(() => {
-    safeStorage.setItem("heimdall_habits", JSON.stringify(habits));
-  }, [habits]);
-
-  useEffect(() => {
-    safeStorage.setItem("heimdall_categories", JSON.stringify(categories));
-  }, [categories]);
-
-  useEffect(() => {
-    safeStorage.setItem("heimdall_deadlines", JSON.stringify(deadlines));
-  }, [deadlines]);
+    const userDocRef = doc(db, "users", user.uid);
+    setDoc(userDocRef, {
+      tasks,
+      categories,
+      deadlines,
+      motif,
+      chatMessages,
+      habits,
+      displayName: user.displayName,
+      updatedAt: new Date().toISOString()
+    }, { merge: true }).catch((err) => {
+      console.error("Error saving user data to Firestore:", err);
+    });
+  }, [tasks, categories, deadlines, motif, chatMessages, habits, user?.displayName, user?.uid, isDataLoading]);
 
   // Track simulated day transitions to execute proactive audits automatically!
   const prevDayRef = useRef<string>(simulatedDay);
@@ -743,11 +765,7 @@ const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: s
       createdAt: simulatedDay
     };
 
-    setHabits(prev => {
-      const updated = [...prev, newHab];
-      safeStorage.setItem("heimdall_habits", JSON.stringify(updated));
-      return updated;
-    });
+    setHabits(prev => [...prev, newHab]);
 
     setChatMessages(prev => [
       ...prev,
@@ -802,7 +820,6 @@ const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: s
         }
         return h;
       });
-      safeStorage.setItem("heimdall_habits", JSON.stringify(updated));
       return updated;
     });
 
@@ -1595,7 +1612,17 @@ if (data.action && data.action.name && data.action.parameters) {
     (t) => t && t.day && typeof t.day === "string" && t.day.toLowerCase() === simulatedDay.toLowerCase()
   );
 
+  if (isDataLoading) {
     return (
+      <div className="dark runic-pattern min-h-screen bg-surface flex flex-col items-center justify-center text-center p-6">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4 shadow-lg shadow-primary/20"></div>
+        <p className="font-mono text-xs text-primary uppercase tracking-widest animate-pulse">Contacting Bifrost...</p>
+        <p className="text-[10px] text-on-surface-variant uppercase tracking-wider mt-1">Synchronizing your safe Asgardian data</p>
+      </div>
+    );
+  }
+
+  return (
     <div className="dark runic-pattern min-h-screen flex flex-col">
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} user={user} onProfileClick={() => setShowProfileModal(true)} />
       <TopBar

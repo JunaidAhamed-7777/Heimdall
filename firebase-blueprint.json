@@ -1,0 +1,17 @@
+{
+  "collections": {
+    "users": {
+      "schema": {
+        "tasks": "array",
+        "deadlines": "array",
+        "categories": "array",
+        "habits": "array",
+        "chatMessages": "array",
+        "motif": "string",
+        "displayName": "string",
+        "updatedAt": "string"
+      },
+      "indexes": []
+    }
+  }
+}
