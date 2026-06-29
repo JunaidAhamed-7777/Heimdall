@@ -255,6 +255,57 @@ export default function AgendaTab({
             )}
           </div>
 
+        {/* Upcoming Tasks Preview */}
+          {(() => {
+            const today = simulatedDay;
+            const twoWeeksLater = new Date(today);
+            twoWeeksLater.setDate(twoWeeksLater.getDate() + 14);
+            const maxDate = twoWeeksLater.toISOString().slice(0, 10);
+
+            const upcoming = tasks
+              .filter(t => t.day > today && t.day <= maxDate)
+              .reduce((acc: Record<string, number>, t) => {
+                acc[t.day] = (acc[t.day] || 0) + 1;
+                return acc;
+              }, {});
+
+            const upcomingDates = Object.entries(upcoming)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .slice(0, 7);
+
+            if (upcomingDates.length === 0) return null;
+
+            return (
+              <div className="bg-surface-container border border-outline-variant p-4 rounded-xl mt-4">
+                <h4 className="text-xs font-label-caps text-on-surface-variant uppercase tracking-wider mb-3">
+                  Upcoming Tasks
+                </h4>
+                <div className="space-y-2">
+                  {upcomingDates.map(([date, count]) => {
+                    const formattedDate = new Date(date + "T00:00:00").toLocaleDateString("en-US", {
+                      weekday: "short",
+                      month: "short",
+                      day: "numeric",
+                    });
+                    return (
+                      <button
+                        key={date}
+                        onClick={() => onDayChange(date)}
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-surface hover:bg-surface-variant transition-colors text-left group"
+                      >
+                        <span className="text-xs text-on-surface group-hover:text-primary transition-colors">
+                          {formattedDate}
+                        </span>
+                        <span className="text-xs font-mono text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
           
         </div>{/* End left column */}
 
