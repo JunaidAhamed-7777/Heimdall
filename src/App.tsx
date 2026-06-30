@@ -54,6 +54,7 @@ import GapsAnalysisModal from "./components/GapsAnalysisModal";
 import ImportExportModal from "./components/ImportExportModal";
 import NotificationsModal, { NotificationItem } from "./components/NotificationsModal";
 import { doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
+import privacyPolicyRaw from "../privacy_policy.txt?raw";
 
 // Helper function to generate an ICS calendar content string
 const generateICSFile = (events: Array<{ title: string; day: string; start_time: string; end_time: string }>): string => {
@@ -149,7 +150,11 @@ export default function App() {
     setInfoModal({
       isOpen: true,
       title: "Privacy Policy",
-      body: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.",
+      body: (
+        <pre className="text-xs font-mono whitespace-pre-wrap text-left max-h-[60vh] overflow-y-auto custom-scrollbar">
+          {privacyPolicyRaw}
+        </pre>
+      ),
     });
   };
 
