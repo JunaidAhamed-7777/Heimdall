@@ -3,7 +3,7 @@ import { TaskItem } from "../types";
 import {
   Plus, Calendar, Clock, BookOpen, Presentation, Stethoscope, Coffee, Check,
   CheckCircle2, Circle, Trash2, Sparkles, RefreshCw, Award, Flame, TrendingUp,
-  Info
+  Info, Pencil
 } from "lucide-react";
 import { INITIAL_TASKS, INITIAL_MOTIF } from "../utils/initialData";
 import DatePicker from "./DatePicker";
@@ -16,6 +16,8 @@ interface AgendaTabProps {
   onDeleteTask: (id: string) => void;
   onAddTask: (task: TaskItem) => void;
   onResetSchedule: () => void;
+  onEditTask: (taskId: string, updates: Partial<TaskItem>) => void;
+  onEditDeadline: (deadlineId: string, updates: any) => void;
   // Habit related props
   habits: any[];
   onAddHabit: (name: string, freq: string, time: string, dur: number) => void;
@@ -35,7 +37,9 @@ export default function AgendaTab({
   habits, onAddHabit, onLogHabit, onRemoveHabit,
   onRegenerateSchedule,
   categories = ["General"], onAddCategory,
-  deadlines = [], onAddDeadline, onRemoveDeadline
+  deadlines = [], onAddDeadline, onRemoveDeadline,
+  onEditTask,
+  onEditDeadline
 }: AgendaTabProps) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTaskName, setNewTaskName] = useState("");
@@ -60,6 +64,19 @@ export default function AgendaTab({
   const [showAddDeadlineModal, setShowAddDeadlineModal] = useState(false);
   const [newDeadlineName, setNewDeadlineName] = useState("");
   const [newDeadlineDate, setNewDeadlineDate] = useState(simulatedDay);
+  // Edit modal states
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingDeadlineId, setEditingDeadlineId] = useState<string | null>(null);
+
+  // Edit form fields
+  const [editTaskName, setEditTaskName] = useState("");
+  const [editTaskTime, setEditTaskTime] = useState("");
+  const [editTaskDuration, setEditTaskDuration] = useState("");
+  const [editTaskCategory, setEditTaskCategory] = useState("");
+  const [editTaskDesc, setEditTaskDesc] = useState("");
+
+  const [editDeadlineName, setEditDeadlineName] = useState("");
+  const [editDeadlineDate, setEditDeadlineDate] = useState("");
 
   useEffect(() => {
     setNewTaskDay(simulatedDay);
@@ -241,9 +258,25 @@ export default function AgendaTab({
                         <p className="text-on-surface-variant text-sm font-body-md max-w-2xl leading-relaxed">{t.description}</p>
                       </div>
                     </div>
-                    <button onClick={() => onDeleteTask(t.id)} className="text-on-surface-variant/40 hover:text-error transition-colors">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <div className="flex flex-col items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => {
+                          setEditingTaskId(t.id);
+                          setEditTaskName(t.task);
+                          setEditTaskTime(t.time);
+                          setEditTaskDuration(t.duration);
+                          setEditTaskCategory(t.category);
+                          setEditTaskDesc(t.description || "");
+                        }}
+                        className="text-on-surface-variant hover:text-primary transition-colors"
+                        title="Edit task"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => onDeleteTask(t.id)} className="text-on-surface-variant hover:text-error transition-colors" title="Delete task">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
@@ -382,14 +415,28 @@ export default function AgendaTab({
                           <p className="text-lg font-mono text-error font-medium mt-0.5">{timeRemaining}</p>
                           <p className="text-[10px] text-on-surface-variant font-mono mt-0.5">Due on {formattedDate}</p>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => onRemoveDeadline(deadline.id)}
-                          className="opacity-0 group-hover:opacity-100 text-on-surface-variant hover:text-error transition-all duration-200 p-1"
-                          title="Remove Deadline"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingDeadlineId(deadline.id);
+                              setEditDeadlineName(deadline.name);
+                              setEditDeadlineDate(deadline.date);
+                            }}
+                            className="text-on-surface-variant hover:text-primary p-1"
+                            title="Edit deadline"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onRemoveDeadline(deadline.id)}
+                            className="text-on-surface-variant hover:text-error p-1"
+                            title="Remove Deadline"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
@@ -561,6 +608,107 @@ export default function AgendaTab({
           </div>
         </div>
       )}
+
+      {/* Edit Task Modal */}
+{editingTaskId && (
+  <div
+    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fadeIn"
+    onClick={() => setEditingTaskId(null)}
+  >
+    <div
+      className="bg-surface border border-outline-variant rounded-2xl p-6 max-w-lg w-full mx-4 shadow-2xl"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <h3 className="font-headline-sm text-on-surface mb-4">Edit Task</h3>
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="col-span-2">
+          <label className="text-xs font-mono text-on-surface-variant">Task Name</label>
+          <input value={editTaskName} onChange={(e) => setEditTaskName(e.target.value)} className="w-full bg-surface-container border border-outline-variant rounded px-2 py-1 text-xs text-on-surface" />
+        </div>
+        <div>
+          <label className="text-xs font-mono text-on-surface-variant">Time Range</label>
+          <input value={editTaskTime} onChange={(e) => setEditTaskTime(e.target.value)} className="w-full bg-surface-container border border-outline-variant rounded px-2 py-1 text-xs text-on-surface font-mono" />
+        </div>
+        <div>
+          <label className="text-xs font-mono text-on-surface-variant">Duration</label>
+          <input value={editTaskDuration} onChange={(e) => setEditTaskDuration(e.target.value)} className="w-full bg-surface-container border border-outline-variant rounded px-2 py-1 text-xs text-on-surface" />
+        </div>
+        <div>
+          <label className="text-xs font-mono text-on-surface-variant">Category</label>
+          <select value={editTaskCategory} onChange={(e) => setEditTaskCategory(e.target.value)} className="w-full bg-surface-container border border-outline-variant rounded px-2 py-1 text-xs text-on-surface">
+            {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs font-mono text-on-surface-variant">Description</label>
+          <input value={editTaskDesc} onChange={(e) => setEditTaskDesc(e.target.value)} className="w-full bg-surface-container border border-outline-variant rounded px-2 py-1 text-xs text-on-surface" />
+        </div>
+      </div>
+      <div className="flex justify-end gap-3">
+        <button onClick={() => setEditingTaskId(null)} className="px-4 py-2 rounded-lg border border-outline-variant text-on-surface-variant font-label-caps text-xs hover:bg-surface-variant">Cancel</button>
+        <button
+          onClick={() => {
+            if (editTaskName.trim()) {
+              onEditTask(editingTaskId, {
+                task: editTaskName,
+                time: editTaskTime,
+                duration: editTaskDuration,
+                category: editTaskCategory,
+                description: editTaskDesc,
+              });
+              setEditingTaskId(null);
+            }
+          }}
+          className="px-4 py-2 rounded-lg bg-primary text-on-primary font-label-caps text-xs font-bold hover:bg-primary-container"
+        >
+          Confirm Edit
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
+  {/* Edit Deadline Modal */}
+  {editingDeadlineId && (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fadeIn"
+      onClick={() => setEditingDeadlineId(null)}
+    >
+      <div
+        className="bg-surface border border-outline-variant rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 className="font-headline-sm text-on-surface mb-4">Edit Deadline</h3>
+        <div className="space-y-4 mb-6">
+          <div>
+            <label className="text-xs font-mono text-on-surface-variant">Name</label>
+            <input value={editDeadlineName} onChange={(e) => setEditDeadlineName(e.target.value)} className="w-full bg-surface-container border border-outline-variant rounded px-2 py-1 text-xs text-on-surface" />
+          </div>
+          <div>
+            <label className="text-xs font-mono text-on-surface-variant">Deadline</label>
+            <DatePicker selectedDate={editDeadlineDate} onDateChange={setEditDeadlineDate} />
+          </div>
+        </div>
+        <div className="flex justify-end gap-3">
+          <button onClick={() => setEditingDeadlineId(null)} className="px-4 py-2 rounded-lg border border-outline-variant text-on-surface-variant font-label-caps text-xs hover:bg-surface-variant">Cancel</button>
+          <button
+            onClick={() => {
+              if (editDeadlineName.trim()) {
+                onEditDeadline(editingDeadlineId, {
+                  name: editDeadlineName,
+                  date: editDeadlineDate,
+                });
+                setEditingDeadlineId(null);
+              }
+            }}
+            className="px-4 py-2 rounded-lg bg-primary text-on-primary font-label-caps text-xs font-bold hover:bg-primary-container"
+          >
+            Confirm Edit
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
     </section>
   );
 }

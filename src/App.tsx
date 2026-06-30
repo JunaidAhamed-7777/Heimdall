@@ -1298,6 +1298,18 @@ const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: s
     );
   };
 
+  const handleEditTask = (taskId: string, updates: Partial<TaskItem>) => {
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, ...updates } : t))
+    );
+  };
+
+  const handleEditDeadline = (deadlineId: string, updates: any) => {
+    setDeadlines((prev) =>
+      prev.map((d) => (d.id === deadlineId ? { ...d, ...updates } : d))
+    );
+  };
+
   const handleDeleteTask = (taskId: string) => {
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return;
@@ -1730,6 +1742,8 @@ if (data.action && data.action.name && data.action.parameters) {
             deadlines={deadlines}
             onAddDeadline={(name, date) => setDeadlines(prev => [...prev, { id: 'deadline-' + Date.now(), name, date }])}
             onRemoveDeadline={handleDeleteDeadline}
+            onEditTask={handleEditTask}
+            onEditDeadline={handleEditDeadline}
           />
         )}
 
