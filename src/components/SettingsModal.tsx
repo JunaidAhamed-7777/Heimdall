@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
-import { X, Mail, Cloud, Pencil, Trash2 } from "lucide-react";
+import { X, Mail, Cloud, Calendar, Pencil, Trash2, AlertTriangle, CheckCircle2, RefreshCw } from "lucide-react";
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   user: any | null;
   categories: string[];
+  connections?: { gmail: boolean; gdrive: boolean; calendar: boolean };
+  connectionErrors?: { gmail: boolean; gdrive: boolean; calendar: boolean };
+  onConnectIntegration?: (type: 'gmail' | 'gdrive' | 'calendar') => Promise<void>;
+  onDisconnectIntegration?: (type: 'gmail' | 'gdrive' | 'calendar') => Promise<void>;
   onProfileClick: () => void;
   onDeleteAccount: () => void;
   onEditCategory: (oldName: string, newName: string) => void;
@@ -19,6 +23,10 @@ export default function SettingsModal({
   onClose,
   user,
   categories,
+  connections = { gmail: false, gdrive: false, calendar: false },
+  connectionErrors = { gmail: false, gdrive: false, calendar: false },
+  onConnectIntegration,
+  onDisconnectIntegration,
   onProfileClick,
   onDeleteAccount,
   onEditCategory,
@@ -154,14 +162,90 @@ export default function SettingsModal({
 
             {activeSection === "apps" && (
               <div className="space-y-4">
-                <div className="flex items-center gap-3 p-3 bg-surface-container-low border border-outline-variant rounded-lg">
-                  <Mail className="w-5 h-5 text-primary" />
-                  <span className="text-xs">Gmail Integration</span>
-                </div>
-                <div className="flex items-center gap-3 p-3 bg-surface-container-low border border-outline-variant rounded-lg">
-                  <Cloud className="w-5 h-5 text-primary" />
-                  <span className="text-xs">Google Drive Integration</span>
-                </div>
+                <p className="text-xs text-on-surface-variant mb-2 font-mono">
+                  Synchronize your workflows with Google Workspace. Integrate Gmail for automated message audits, Google Drive for project logs, and Google Calendar for precise time alignment.
+                </p>
+                {([
+                  { id: 'gmail', name: 'Gmail Integration', desc: 'Monitors incoming confirmation emails to auto-generate events.', icon: Mail },
+                  { id: 'gdrive', name: 'Google Drive Integration', desc: 'Syncs project logs and exported task lists to Drive storage.', icon: Cloud },
+                  { id: 'calendar', name: 'Google Calendar Integration', desc: 'Harmonizes your Heimdall agenda directly with your calendar.', icon: Calendar }
+                ] as const).map((app) => {
+                  const isConnected = !!connections?.[app.id];
+                  const hasError = !!connectionErrors?.[app.id];
+                  const IconComp = app.icon;
+
+                  return (
+                    <div key={app.id} className="flex flex-col gap-2 p-4 bg-surface-container-low border border-outline-variant rounded-xl hover:border-outline transition-all">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3">
+                          <div className={`p-2 rounded-lg ${isConnected ? 'bg-primary/10 text-primary' : 'bg-surface-variant text-on-surface-variant'}`}>
+                            <IconComp className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h4 className="text-xs font-mono font-medium text-on-surface">{app.name}</h4>
+                            <p className="text-[11px] text-on-surface-variant mt-0.5 leading-snug">{app.desc}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          {isConnected && !hasError && (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-success font-mono font-medium px-2 py-0.5 bg-success/10 rounded-full border border-success/20">
+                              <CheckCircle2 className="w-3 h-3" /> Connected
+                            </span>
+                          )}
+                          {!isConnected && !hasError && (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-on-surface-variant font-mono font-medium px-2 py-0.5 bg-surface-variant rounded-full border border-outline-variant">
+                              Disconnected
+                            </span>
+                          )}
+                          {hasError && (
+                            <span className="inline-flex items-center gap-1 text-[10px] text-error font-mono font-medium px-2 py-0.5 bg-error/10 rounded-full border border-error/20">
+                              <AlertTriangle className="w-3 h-3 animate-pulse" /> Out of sync
+                            </span>
+                          )}
+
+                          <button
+                            onClick={async () => {
+                              try {
+                                if (isConnected) {
+                                  await onDisconnectIntegration?.(app.id);
+                                } else {
+                                  await onConnectIntegration?.(app.id);
+                                }
+                              } catch (e) {
+                                console.error(e);
+                              }
+                            }}
+                            className={`px-3 py-1 rounded-lg text-xs font-mono font-medium border transition-colors ${
+                              isConnected 
+                                ? 'bg-surface hover:bg-error/10 hover:text-error border-outline-variant hover:border-error/30' 
+                                : 'bg-primary text-on-primary hover:bg-primary/95 border-transparent'
+                            }`}
+                          >
+                            {isConnected ? 'Disconnect' : 'Connect'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {hasError && (
+                        <div className="mt-2 p-3 bg-error/5 border border-error/10 rounded-lg flex items-start gap-2.5">
+                          <AlertTriangle className="w-4 h-4 text-error shrink-0 mt-0.5" />
+                          <div className="flex-1">
+                            <p className="text-[11px] text-error leading-relaxed">
+                              Connection failed or expired. Please re-authorize to restore automated background updates.
+                            </p>
+                            <button
+                              onClick={() => onConnectIntegration?.(app.id)}
+                              className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-mono text-error hover:underline"
+                            >
+                              <RefreshCw className="w-2.5 h-2.5" /> Re-authorize Now
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
 

@@ -466,6 +466,7 @@ export interface TaskItem {
   source_email?: { subject: string; sender: string };
   is_email_task?: boolean;
   driveFileId?: string;
+  calendarEventId?: string;
 }
 
 // Add task from email to tasks array
@@ -1404,6 +1405,189 @@ app.post("/api/generate-insights", async (req, res) => {
       insights: insightsList,
       recommendations: recommendationsList
     });
+  }
+});
+
+// --- Google Calendar Integration Endpoints ---
+
+// Create Google Calendar Event
+app.post("/api/calendar/create-event", async (req, res) => {
+  try {
+    const { accessToken, event } = req.body;
+    if (!accessToken) {
+      return res.status(400).json({ error: "Access token is required" });
+    }
+    if (!event) {
+      return res.status(400).json({ error: "Event data is required" });
+    }
+
+    const response = await fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(event)
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Google Calendar API responded with status ${response.status}: ${errText}`);
+    }
+
+    const data = await response.json();
+    res.json({ eventId: data.id });
+  } catch (error: any) {
+    console.error("Error creating calendar event:", error);
+    res.status(500).json({ error: error.message || "An error occurred while creating the calendar event" });
+  }
+});
+
+// Update Google Calendar Event
+app.post("/api/calendar/update-event", async (req, res) => {
+  try {
+    const { accessToken, eventId, event } = req.body;
+    if (!accessToken || !eventId || !event) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(event)
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Google Calendar API responded with status ${response.status}: ${errText}`);
+    }
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error("Error updating calendar event:", error);
+    res.status(500).json({ error: error.message || "An error occurred while updating the calendar event" });
+  }
+});
+
+// Delete Google Calendar Event
+app.post("/api/calendar/delete-event", async (req, res) => {
+  try {
+    const { accessToken, eventId } = req.body;
+    if (!accessToken || !eventId) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+
+    if (!response.ok && response.status !== 404) {
+      const errText = await response.text();
+      throw new Error(`Google Calendar API responded with status ${response.status}: ${errText}`);
+    }
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error("Error deleting calendar event:", error);
+    res.status(500).json({ error: error.message || "An error occurred while deleting the calendar event" });
+  }
+});
+
+// Check Duplicate Google Calendar Event
+app.post("/api/calendar/check-duplicate", async (req, res) => {
+  try {
+    const { accessToken, summary, startDateTime } = req.body;
+    if (!accessToken || !summary || !startDateTime) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    const response = await fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events?singleEvents=true&maxResults=100", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Google Calendar API responded with status ${response.status}`);
+    }
+
+    const data = await response.json();
+    const events = data.items || [];
+
+    const duplicate = events.find((evt: any) => {
+      if (!evt.summary) return false;
+      const cleanSummary = evt.summary.replace(/^✅ \[COMPLETED\]\s*/, "");
+      const targetSummary = summary.replace(/^✅ \[COMPLETED\]\s*/, "");
+      
+      const evtStart = evt.start?.dateTime || evt.start?.date || "";
+      const targetStart = startDateTime;
+      
+      return cleanSummary.toLowerCase() === targetSummary.toLowerCase() && 
+             evtStart.substring(0, 16) === targetStart.substring(0, 16);
+    });
+
+    if (duplicate) {
+      return res.json({ isDuplicate: true, eventId: duplicate.id });
+    }
+
+    res.json({ isDuplicate: false });
+  } catch (error: any) {
+    console.error("Error checking duplicate calendar event:", error);
+    res.status(500).json({ error: error.message || "An error occurred while checking duplicate" });
+  }
+});
+
+// List Google Calendar Events
+app.post("/api/calendar/list-events", async (req, res) => {
+  try {
+    const { accessToken, userEmail } = req.body;
+    if (!accessToken) {
+      return res.status(400).json({ error: "Access token is required" });
+    }
+
+    const response = await fetch("https://www.googleapis.com/calendar/v3/calendars/primary/events?singleEvents=true&maxResults=150", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Google Calendar API responded with status ${response.status}: ${errText}`);
+    }
+
+    const data = await response.json();
+    const events = data.items || [];
+
+    const filteredEvents = events.filter((evt: any) => {
+      const organizerEmail = evt.organizer?.email;
+      const isOrganizerUser = evt.organizer?.self === true || (organizerEmail && organizerEmail === userEmail);
+      
+      if (!isOrganizerUser) return false;
+      if (evt.eventType && evt.eventType !== 'default') return false;
+      
+      const summaryLower = (evt.summary || '').toLowerCase();
+      if (summaryLower.includes('holiday') || summaryLower.includes('birthday') || summaryLower.includes('anniversary')) {
+        return false;
+      }
+      
+      if (evt.transparency === 'transparent') {
+        if (summaryLower.includes('holiday') || summaryLower.includes('birthday')) return false;
+      }
+
+      return true;
+    });
+
+    res.json({ events: filteredEvents });
+  } catch (error: any) {
+    console.error("Error listing calendar events:", error);
+    res.status(500).json({ error: error.message || "An error occurred while listing calendar events" });
   }
 });
 

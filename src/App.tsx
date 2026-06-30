@@ -33,7 +33,6 @@ import {
   BarChart3
 } from "lucide-react";
 import { signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import { TaskItem, ChatMessage, ScheduleBlueprint } from "./types";
 import { INITIAL_TASKS, INITIAL_MOTIF } from "./utils/initialData";
@@ -240,6 +239,11 @@ const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => [
             if (data.motif) setMotif(data.motif);
             if (data.chatMessages) setChatMessages(data.chatMessages);
             if (data.habits) setHabits(data.habits);
+            if (data.connections) {
+              setConnections(data.connections);
+            } else {
+              setConnections({ gmail: false, gdrive: false, calendar: false });
+            }
             
             setUser({
               uid: firebaseUser.uid,
@@ -266,6 +270,7 @@ const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => [
               motif: INITIAL_MOTIF,
               chatMessages: defaultChat,
               habits: [],
+              connections: { gmail: false, gdrive: false, calendar: false },
               displayName: firebaseUser.displayName,
               updatedAt: new Date().toISOString()
             };
@@ -313,6 +318,11 @@ const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => [
           }
         ]);
         setHabits([]);
+        setConnections({ gmail: false, gdrive: false, calendar: false });
+        setConnectionErrors({ gmail: false, gdrive: false, calendar: false });
+        setGmailToken(null);
+        setDriveToken(null);
+        setCalendarToken(null);
         setUser(null);
         setIsDataLoading(false);
       }
@@ -379,6 +389,24 @@ const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; itemName: st
   useEffect(() => {
     processedIdsRef.current = gmailProcessedIds;
   }, [gmailProcessedIds]);
+
+  // --- Workspace Connection States ---
+  const [driveToken, setDriveToken] = useState<string | null>(() => {
+    return safeStorage.getItem("heimdall_gdrive_token") || null;
+  });
+  const [calendarToken, setCalendarToken] = useState<string | null>(() => {
+    return safeStorage.getItem("heimdall_calendar_token") || null;
+  });
+  const [connections, setConnections] = useState<{ gmail: boolean; gdrive: boolean; calendar: boolean }>({
+    gmail: false,
+    gdrive: false,
+    calendar: false,
+  });
+  const [connectionErrors, setConnectionErrors] = useState<{ gmail: boolean; gdrive: boolean; calendar: boolean }>({
+    gmail: false,
+    gdrive: false,
+    calendar: false,
+  });
 
   const [isCheckingGmail, setIsCheckingGmail] = useState<boolean>(false);
   const [lastGmailCheck, setLastGmailCheck] = useState<string | null>(null);
@@ -532,37 +560,61 @@ const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: s
     ]);
   };
 
-  // Gmail OAuth popup triggers
-  const handleConnectGmail = async () => {
+  // Workspace integration connection handlers
+  const handleConnectIntegration = async (type: 'gmail' | 'gdrive' | 'calendar') => {
     setApiError(null);
     try {
       const provider = new GoogleAuthProvider();
-      provider.addScope("https://www.googleapis.com/auth/gmail.readonly");
-      
+      if (type === 'gmail') {
+        provider.addScope("https://www.googleapis.com/auth/gmail.readonly");
+      } else if (type === 'gdrive') {
+        provider.addScope("https://www.googleapis.com/auth/drive.readonly");
+      } else if (type === 'calendar') {
+        provider.addScope("https://www.googleapis.com/auth/calendar");
+      }
+
       const result = await signInWithPopup(auth, provider);
       const credential = GoogleAuthProvider.credentialFromResult(result);
       if (credential?.accessToken) {
         const token = credential.accessToken;
-        setGmailToken(token);
-        safeStorage.setItem("heimdall_gmail_token", token);
         
-        if (result.user) {
-          const userObj = {
-            displayName: result.user.displayName,
-            email: result.user.email,
-            photoURL: result.user.photoURL,
-          };
-          setGmailUser(userObj);
-          safeStorage.setItem("heimdall_gmail_user", JSON.stringify(userObj));
+        if (type === 'gmail') {
+          setGmailToken(token);
+          safeStorage.setItem("heimdall_gmail_token", token);
+          if (result.user) {
+            const userObj = {
+              displayName: result.user.displayName,
+              email: result.user.email,
+              photoURL: result.user.photoURL,
+            };
+            setGmailUser(userObj);
+            safeStorage.setItem("heimdall_gmail_user", JSON.stringify(userObj));
+          }
+        } else if (type === 'gdrive') {
+          setDriveToken(token);
+          safeStorage.setItem("heimdall_gdrive_token", token);
+        } else if (type === 'calendar') {
+          setCalendarToken(token);
+          safeStorage.setItem("heimdall_calendar_token", token);
         }
 
-        
+        setConnections((prev) => ({
+          ...prev,
+          [type]: true
+        }));
+
+        setConnectionErrors((prev) => ({
+          ...prev,
+          [type]: false
+        }));
+
+        const nameMap = { gmail: "Gmail", gdrive: "Google Drive", calendar: "Google Calendar" };
         setChatMessages((prev) => [
           ...prev,
           {
-            id: `msg-gmail-${Date.now()}`,
+            id: `msg-conn-success-${type}-${Date.now()}`,
             role: "model",
-            content: `🔓 Gmail connected successfully! I am now monitoring your mailbox in the background for confirmation events.`,
+            content: `🔓 ${nameMap[type]} connected successfully! I can now synchronize your data safely.`,
             timestamp: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
           }
         ]);
@@ -571,25 +623,53 @@ const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: s
       }
     } catch (err: any) {
       console.error(err);
-      setApiError(err.message || "Failed to authenticate. Running in simulated fallback mode.");
+      setConnectionErrors((prev) => ({
+        ...prev,
+        [type]: true
+      }));
+      setApiError(err.message || "Failed to authenticate with Google.");
+      throw err;
     }
   };
 
-  const handleDisconnectGmail = () => {
-    setGmailToken(null);
-    setGmailUser(null);
-    safeStorage.setItem("heimdall_gmail_token", "");
-    safeStorage.setItem("heimdall_gmail_user", "");
+  const handleDisconnectIntegration = async (type: 'gmail' | 'gdrive' | 'calendar') => {
+    if (type === 'gmail') {
+      setGmailToken(null);
+      setGmailUser(null);
+      safeStorage.setItem("heimdall_gmail_token", "");
+      safeStorage.setItem("heimdall_gmail_user", "");
+    } else if (type === 'gdrive') {
+      setDriveToken(null);
+      safeStorage.setItem("heimdall_gdrive_token", "");
+    } else if (type === 'calendar') {
+      setCalendarToken(null);
+      safeStorage.setItem("heimdall_calendar_token", "");
+    }
+
+    setConnections((prev) => ({
+      ...prev,
+      [type]: false
+    }));
+
+    setConnectionErrors((prev) => ({
+      ...prev,
+      [type]: false
+    }));
+
+    const nameMap = { gmail: "Gmail", gdrive: "Google Drive", calendar: "Google Calendar" };
     setChatMessages((prev) => [
       ...prev,
       {
-        id: `msg-gmail-${Date.now()}`,
+        id: `msg-conn-disc-${type}-${Date.now()}`,
         role: "model",
-        content: `🔒 Gmail disconnected. Background email monitoring is now inactive.`,
+        content: `🔒 ${nameMap[type]} disconnected. Connection is now inactive.`,
         timestamp: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
       }
     ]);
   };
+
+  const handleConnectGmail = () => handleConnectIntegration('gmail');
+  const handleDisconnectGmail = () => handleDisconnectIntegration('gmail');
 
   // --- Google OAuth Profile Login & Logout Handlers ---
   const handleProfileLogin = async () => {
@@ -707,12 +787,13 @@ const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: s
       motif,
       chatMessages,
       habits,
+      connections,
       displayName: user.displayName,
       updatedAt: new Date().toISOString()
     }, { merge: true }).catch((err) => {
       console.error("Error saving user data to Firestore:", err);
     });
-  }, [tasks, categories, deadlines, motif, chatMessages, habits, user?.displayName, user?.uid, isDataLoading]);
+  }, [tasks, categories, deadlines, motif, chatMessages, habits, connections, user?.displayName, user?.uid, isDataLoading]);
 
   // Track simulated day transitions to execute proactive audits automatically!
   const prevDayRef = useRef<string>(simulatedDay);
@@ -1292,6 +1373,265 @@ const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: s
   };
 
   // --- Event Handlers ---
+  // --- Google Calendar Sync Machinery ---
+  const prevTasksRef = useRef<TaskItem[]>([]);
+
+  const executeCalendarEventAction = async (task: TaskItem, action: 'create' | 'update' | 'delete') => {
+    if (!calendarToken) return;
+
+    try {
+      if (action === 'delete') {
+        if (!task.calendarEventId) return;
+        const res = await fetch("/api/calendar/delete-event", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            accessToken: calendarToken,
+            eventId: task.calendarEventId
+          })
+        });
+        if (!res.ok) {
+          throw new Error(`Delete event returned ${res.status}`);
+        }
+      } else {
+        const [startTimeStr, endTimeStr] = (task.time || "09:00 - 10:00").split(" - ");
+        const baseDay = task.day || "2026-06-23";
+        const startDateTime = `${baseDay}T${startTimeStr || "09:00"}:00`;
+        const endDateTime = `${baseDay}T${endTimeStr || "10:00"}:00`;
+
+        const titlePrefix = task.completed ? "✅ [COMPLETED] " : "";
+        const summary = `${titlePrefix}${task.task}`;
+
+        const event = {
+          summary,
+          description: task.description || "",
+          start: {
+            dateTime: startDateTime,
+            timeZone: "UTC"
+          },
+          end: {
+            dateTime: endDateTime,
+            timeZone: "UTC"
+          }
+        };
+
+        if (action === 'create') {
+          // Check duplicate first
+          const duplicateRes = await fetch("/api/calendar/check-duplicate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              accessToken: calendarToken,
+              summary,
+              startDateTime
+            })
+          });
+          const duplicateData = await duplicateRes.json();
+          if (duplicateData.isDuplicate && duplicateData.eventId) {
+            console.log("Duplicate calendar event detected, linking instead of creating.");
+            setTasks(prev => prev.map(t => t.id === task.id ? { ...t, calendarEventId: duplicateData.eventId } : t));
+            return;
+          }
+
+          const res = await fetch("/api/calendar/create-event", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              accessToken: calendarToken,
+              event
+            })
+          });
+          if (!res.ok) {
+            throw new Error(`Create event returned ${res.status}`);
+          }
+          const data = await res.json();
+          if (data.eventId) {
+            setTasks(prev => prev.map(t => t.id === task.id ? { ...t, calendarEventId: data.eventId } : t));
+          }
+        } else if (action === 'update') {
+          if (!task.calendarEventId) return;
+          const res = await fetch("/api/calendar/update-event", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              accessToken: calendarToken,
+              eventId: task.calendarEventId,
+              event
+            })
+          });
+          if (!res.ok) {
+            throw new Error(`Update event returned ${res.status}`);
+          }
+        }
+      }
+    } catch (err: any) {
+      console.error(`Calendar sync error for action ${action}:`, err);
+      setConnectionErrors(prev => ({
+        ...prev,
+        calendar: true
+      }));
+    }
+  };
+
+  useEffect(() => {
+    if (!connections.calendar || !calendarToken) {
+      prevTasksRef.current = tasks;
+      return;
+    }
+
+    const prevTasks = prevTasksRef.current;
+    
+    // 1. Detect deleted tasks
+    const deletedTasks = prevTasks.filter(pt => !tasks.some(t => t.id === pt.id));
+    for (const pt of deletedTasks) {
+      if (pt.calendarEventId) {
+        executeCalendarEventAction(pt, 'delete');
+      }
+    }
+
+    // 2. Detect added tasks
+    const addedTasks = tasks.filter(t => !prevTasks.some(pt => pt.id === t.id));
+    for (const t of addedTasks) {
+      if (!t.calendarEventId) {
+        executeCalendarEventAction(t, 'create');
+      }
+    }
+
+    // 3. Detect updated tasks
+    const updatedTasks = tasks.filter(t => {
+      const pt = prevTasks.find(p => p.id === t.id);
+      if (!pt) return false;
+      return pt.task !== t.task || 
+             pt.description !== t.description || 
+             pt.day !== t.day || 
+             pt.time !== t.time || 
+             pt.completed !== t.completed;
+    });
+
+    for (const t of updatedTasks) {
+      if (t.calendarEventId) {
+        executeCalendarEventAction(t, 'update');
+      } else {
+        executeCalendarEventAction(t, 'create');
+      }
+    }
+
+    prevTasksRef.current = tasks;
+  }, [tasks, connections.calendar, calendarToken]);
+
+  // Import calendar events as Heimdall tasks
+  const importCalendarEventsAsTasks = async () => {
+    if (!connections.calendar || !calendarToken || !user?.email) return;
+
+    try {
+      const res = await fetch("/api/calendar/list-events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          accessToken: calendarToken,
+          userEmail: user.email
+        })
+      });
+
+      if (!res.ok) {
+        throw new Error(`List events returned ${res.status}`);
+      }
+
+      const { events } = await res.json();
+      if (!events || !Array.isArray(events)) return;
+
+      setTasks(prev => {
+        let updated = [...prev];
+        let newlyImportedCount = 0;
+
+        for (const evt of events) {
+          const exists = updated.some(t => t.calendarEventId === evt.id);
+          if (exists) continue;
+
+          const startIso = evt.start?.dateTime || evt.start?.date || "";
+          if (!startIso) continue;
+
+          const datePart = startIso.split("T")[0];
+          const timePart = startIso.includes("T") ? startIso.split("T")[1].substring(0, 5) : "09:00";
+
+          let durationStr = "1 hr";
+          if (evt.start?.dateTime && evt.end?.dateTime) {
+            const startMs = new Date(evt.start.dateTime).getTime();
+            const endMs = new Date(evt.end.dateTime).getTime();
+            const diffMin = Math.round((endMs - startMs) / (1000 * 60));
+            if (diffMin > 0) {
+              durationStr = diffMin >= 60 ? `${(diffMin / 60).toFixed(1)} hrs` : `${diffMin} mins`;
+            }
+          }
+
+          const newTask: TaskItem = {
+            id: `task-cal-${evt.id}`,
+            day: datePart,
+            time: `${timePart} - ${calculateEndTime(timePart, durationStr)}`,
+            task: evt.summary || "Imported Event",
+            duration: durationStr,
+            category: "general",
+            completed: false,
+            description: evt.description || "Imported from your Google Calendar.",
+            calendarEventId: evt.id
+          };
+
+          updated.push(newTask);
+          newlyImportedCount++;
+        }
+
+        if (newlyImportedCount > 0) {
+          setChatMessages(prevChat => [
+            ...prevChat,
+            {
+              id: `msg-cal-import-${Date.now()}`,
+              role: "model",
+              content: `📥 Imported ${newlyImportedCount} new event(s) from your Google Calendar and added them to your agenda.`,
+              timestamp: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+            }
+          ]);
+        }
+
+        return updated;
+      });
+
+    } catch (err) {
+      console.error("Failed to import calendar events:", err);
+      setConnectionErrors(prev => ({
+        ...prev,
+        calendar: true
+      }));
+    }
+  };
+
+  const calculateEndTime = (startTime: string, durationStr: string) => {
+    try {
+      const [hStr, mStr] = startTime.split(":");
+      let totalMins = parseInt(hStr, 10) * 60 + parseInt(mStr, 10);
+      
+      let durationMins = 60;
+      if (durationStr.includes("hr")) {
+        const hrs = parseFloat(durationStr);
+        durationMins = Math.round(hrs * 60);
+      } else if (durationStr.includes("min")) {
+        durationMins = parseInt(durationStr, 10);
+      }
+      
+      const endTotalMins = (totalMins + durationMins) % 1440;
+      const endHrs = Math.floor(endTotalMins / 60);
+      const endMins = endTotalMins % 60;
+      return `${endHrs.toString().padStart(2, "0")}:${endMins.toString().padStart(2, "0")}`;
+    } catch {
+      return "10:00";
+    }
+  };
+
+  useEffect(() => {
+    if (user && connections.calendar && calendarToken) {
+      importCalendarEventsAsTasks();
+    }
+  }, [user, connections.calendar, calendarToken]);
+
   const handleToggleTask = (taskId: string) => {
     setTasks((prev) =>
       prev.map((t) => (t.id === taskId ? { ...t, completed: !t.completed } : t))
@@ -1874,6 +2214,10 @@ if (data.action && data.action.name && data.action.parameters) {
         onClose={() => setShowSettings(false)}
         user={user}
         categories={categories}
+        connections={connections}
+        connectionErrors={connectionErrors}
+        onConnectIntegration={handleConnectIntegration}
+        onDisconnectIntegration={handleDisconnectIntegration}
         onProfileClick={() => {
           setShowSettings(false);
           setShowProfileModal(true);

@@ -8,6 +8,7 @@ export interface TaskItem {
   completed: boolean;
   description: string;
   driveFileId?: string;
+  calendarEventId?: string;
 }
 
 export interface ScheduleBlueprint {
