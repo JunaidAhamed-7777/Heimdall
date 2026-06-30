@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { X, Mail, Cloud, Calendar, Pencil, Trash2, AlertTriangle, CheckCircle2, RefreshCw } from "lucide-react";
+import privacyPolicyText from "../../privacy_policy.txt?raw";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -73,7 +74,7 @@ export default function SettingsModal({
       onClick={onClose}
     >
       <div
-        className="bg-surface border border-outline-variant rounded-2xl w-full max-w-2xl h-[28rem] mx-4 shadow-2xl flex overflow-hidden relative"
+        className="bg-surface border border-outline-variant rounded-2xl w-full max-w-4xl h-[34rem] mx-4 shadow-2xl flex overflow-hidden relative"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Left panel (20%) */}
@@ -250,10 +251,9 @@ export default function SettingsModal({
             )}
 
             {activeSection === "privacy" && (
-              <p>
-                Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do
-                eiusmod tempor incididunt ut labore et dolore magna aliqua.
-              </p>
+              <pre className="text-xs font-mono whitespace-pre-wrap text-left max-h-[55vh] overflow-y-auto custom-scrollbar">
+                {privacyPolicyText}
+              </pre>
             )}
           </div>
         </div>

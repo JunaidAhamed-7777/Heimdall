@@ -25,7 +25,7 @@ export default function InfoModal({ isOpen, onClose, title, children }: InfoModa
       onClick={onClose}
     >
       <div
-        className="bg-surface border border-outline-variant rounded-2xl p-6 max-w-lg w-full mx-4 shadow-2xl max-h-[80vh] overflow-y-auto custom-scrollbar"
+        className="bg-surface border border-outline-variant rounded-2xl p-6 max-w-4xl w-full mx-4 shadow-2xl max-h-[80vh] overflow-y-auto custom-scrollbar"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
