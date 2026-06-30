@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Mic, AlertCircle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { createPortal } from "react-dom";
 
 interface VoiceInputButtonProps {
   onTranscriptChange: (text: string) => void;
@@ -13,8 +14,10 @@ export default function VoiceInputButton({
 }: VoiceInputButtonProps) {
   const [isListening, setIsListening] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
   const recognitionRef = useRef<any>(null);
   const initialValueRef = useRef("");
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   // Clean up on unmount
   useEffect(() => {
@@ -24,6 +27,35 @@ export default function VoiceInputButton({
       }
     };
   }, []);
+
+  // Update fixed portal positioning coordinates
+  const updateCoords = () => {
+    if (buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setCoords({
+        top: rect.top - 8, // Place 8px above the top edge of the button
+        left: rect.left + rect.width / 2, // Horizontally center relative to button
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (isListening || errorMsg) {
+      updateCoords();
+      // Listen to scroll and resize events globally to update position
+      window.addEventListener("scroll", updateCoords, true);
+      window.addEventListener("resize", updateCoords);
+      
+      // Periodic check as layout might change
+      const interval = setInterval(updateCoords, 300);
+
+      return () => {
+        window.removeEventListener("scroll", updateCoords, true);
+        window.removeEventListener("resize", updateCoords);
+        clearInterval(interval);
+      };
+    }
+  }, [isListening, errorMsg]);
 
   const startListening = () => {
     setErrorMsg(null);
@@ -103,6 +135,7 @@ export default function VoiceInputButton({
   return (
     <div className="relative flex flex-col items-center">
       <button
+        ref={buttonRef}
         type="button"
         id="voice-mic-btn"
         onClick={handleMicClick}
@@ -121,36 +154,48 @@ export default function VoiceInputButton({
         )}
       </button>
 
-      {/* Comic-book dialogue style speech bubble or error msg */}
-      <AnimatePresence>
-        {isListening && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            className="absolute top-12 z-50 bg-surface-container border border-primary text-primary px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-lg whitespace-nowrap flex items-center gap-1.5"
-            style={{
-              clipPath: "polygon(0% 0%, 100% 0%, 100% 90%, 55% 90%, 50% 100%, 45% 90%, 0% 90%)",
-              paddingBottom: "8px",
-            }}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce inline-block" />
-            Listening...
-          </motion.div>
-        )}
+      {/* Portal elements rendered into body to escape any clipping containers */}
+      {typeof document !== "undefined" &&
+        createPortal(
+          <AnimatePresence>
+            {isListening && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 5 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 5 }}
+                className="fixed z-[99999] bg-[#141517] border border-primary text-primary px-3 py-1.5 rounded-lg text-[11px] font-bold shadow-2xl flex items-center gap-1.5 -translate-x-1/2 -translate-y-full select-none"
+                style={{
+                  top: `${coords.top}px`,
+                  left: `${coords.left}px`,
+                  maxWidth: "320px",
+                  boxShadow: "0 10px 25px -5px rgba(0,0,0,0.5), 0 0 10px rgba(212,175,55,0.15)",
+                }}
+              >
+                <span className="w-2 h-2 rounded-full bg-primary animate-bounce inline-block" />
+                <span>Listening...</span>
+              </motion.div>
+            )}
 
-        {errorMsg && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="absolute top-12 z-50 bg-error-container border border-error text-error px-3 py-1.5 rounded-lg text-[10px] font-medium shadow-lg whitespace-nowrap flex items-center gap-1"
-          >
-            <AlertCircle className="w-3 h-3" />
-            {errorMsg}
-          </motion.div>
+            {errorMsg && (
+              <motion.div
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                className="fixed z-[99999] bg-error-container border border-error text-error px-3 py-1.5 rounded-lg text-[11px] font-medium shadow-2xl flex items-center gap-1.5 -translate-x-1/2 -translate-y-full select-none"
+                style={{
+                  top: `${coords.top}px`,
+                  left: `${coords.left}px`,
+                  maxWidth: "350px",
+                  boxShadow: "0 10px 25px -5px rgba(0,0,0,0.5)",
+                }}
+              >
+                <AlertCircle className="w-3.5 h-3.5" />
+                <span>{errorMsg}</span>
+              </motion.div>
+            )}
+          </AnimatePresence>,
+          document.body
         )}
-      </AnimatePresence>
     </div>
   );
 }

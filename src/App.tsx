@@ -50,6 +50,8 @@ import HabitsPage from "./components/HabitsPage";
 import { getDefaultSimulatedDate, getSimulatedDate, getDayLabelFromDate } from "./utils/dateUtils";
 import InfoModal from "./components/InfoModal";
 import SettingsModal from "./components/SettingsModal";
+import GapsAnalysisModal from "./components/GapsAnalysisModal";
+import ImportExportModal from "./components/ImportExportModal";
 import { doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
 
 // Helper function to generate an ICS calendar content string
@@ -108,6 +110,15 @@ const safeStorage = {
       }
     } catch (e) {
       console.warn("Storage item save failed:", e);
+    }
+  },
+  removeItem: (key: string): void => {
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        window.localStorage.removeItem(key);
+      }
+    } catch (e) {
+      console.warn("Storage item deletion failed:", e);
     }
   }
 };
@@ -190,6 +201,16 @@ const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => [
   // --- App View & Simulation States ---
   const [currentView, setCurrentView] = useState<"protocol" | "chat">("protocol");
   const [simulatedDay, setSimulatedDay] = useState<string>(() => new Date().toISOString().slice(0, 10));
+
+  // --- Gaps and Import/Export States ---
+  const [showGapsModal, setShowGapsModal] = useState<boolean>(false);
+  const [isLoadingGapsAnalysis, setIsLoadingGapsAnalysis] = useState<boolean>(false);
+  const [gapsAnalysisResults, setGapsAnalysisResults] = useState<{
+    inefficiencies: any[];
+    conflicts: string[];
+    recommendations: any[];
+  }>({ inefficiencies: [], conflicts: [], recommendations: [] });
+  const [showImportExportModal, setShowImportExportModal] = useState<boolean>(false);
 
   // --- Google OAuth & User Profile States ---
   const [user, setUser] = useState<any | null>(null);
@@ -1068,6 +1089,59 @@ const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: s
 
    // 5. Detect schedule gaps and match micro-tasks
    const executeDetectGapsAndNudge = async () => {
+    setShowGapsModal(true);
+    setIsLoadingGapsAnalysis(true);
+    setGapsAnalysisResults({ inefficiencies: [], conflicts: [], recommendations: [] });
+    
+    try {
+      const res = await fetch("/api/detect-gaps-analysis", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tasks: tasks,
+          deadlines: deadlines,
+          currentDay: getDayLabelFromDate ? getDayLabelFromDate(simulatedDay) : "Tuesday"
+        })
+      });
+
+      if (!res.ok) {
+        throw new Error(`Gaps service returned status ${res.status}`);
+      }
+
+      const result = await res.json();
+      setGapsAnalysisResults({
+        inefficiencies: result.inefficiencies || [],
+        conflicts: result.conflicts || [],
+        recommendations: result.recommendations || []
+      });
+    } catch (err: any) {
+      console.error("Failed to run gaps analysis:", err);
+      setGapsAnalysisResults({
+        inefficiencies: [],
+        conflicts: ["Error: Could not connect to timeline intelligence advisor. " + err.message],
+        recommendations: []
+      });
+    } finally {
+      setIsLoadingGapsAnalysis(false);
+    }
+    return;
+  };
+
+  const handleImplementGapsInefficiency = (inef: any) => {
+    if (inef.type === "task") {
+      setTasks(prev => prev.map(t => t.id === inef.id ? { ...t, ...inef.updatedItem } : t));
+    } else if (inef.type === "deadline") {
+      setDeadlines(prev => prev.map(d => d.id === inef.id ? { ...d, ...inef.updatedItem } : d));
+    }
+  };
+
+  const handleConfirmGapsRecommendation = (rec: any) => {
+    if (rec.tasksToCreate && Array.isArray(rec.tasksToCreate)) {
+      setTasks(prev => [...prev, ...rec.tasksToCreate]);
+    }
+  };
+
+  const executeDetectGapsAndNudge_Old = async () => {
     const parseTimeStr = (tStr: string) => {
       const parts = tStr.trim().split(":");
       const h = parseInt(parts[0] || "0", 10);
@@ -1993,20 +2067,48 @@ if (data.action && data.action.name && data.action.parameters) {
 
   const handleDeleteAccount = async () => {
     if (user) {
-      const userDocRef = doc(db, "users", user.uid);
-      await setDoc(userDocRef, {}, { merge: false }); // effectively deletes data? better to delete the document
-      // Actually delete the document
-      const { deleteDoc } = await import("firebase/firestore");
-      await deleteDoc(userDocRef);
-      await signOut(auth);
-      // Clear local state
+      try {
+        const userDocRef = doc(db, "users", user.uid);
+        await deleteDoc(userDocRef);
+      } catch (err) {
+        console.error("Error deleting user document:", err);
+      }
+      
+      try {
+        await signOut(auth);
+      } catch (err) {
+        console.error("Error signing out:", err);
+      }
+      
+      // Reset all user states to guest defaults
       setUser(null);
-      setTasks(INITIAL_TASKS.map(t => ({ ...t, day: getSimulatedDate(t.day) })));
+      const defaultTasks = INITIAL_TASKS.map((t) => ({ ...t, day: getSimulatedDate(t.day) }));
+      const defaultChat = [
+        {
+          id: "msg-1",
+          role: "model",
+          content: "Hello! I am Heimdall, your executive productivity advisor. I keep an eye on your Gmail for any confirmations — bookings, registrations, appointments — so I can automatically add them to your calendar. You can also discuss rescheduling, request advice, or update your progress. Let's bypass stress with precise execution.",
+          timestamp: new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+        }
+      ];
+      setTasks(defaultTasks);
       setCategories(["General"]);
       setDeadlines([]);
       setMotif(INITIAL_MOTIF);
-      setChatMessages([ /* default message */ ]);
+      setChatMessages(defaultChat);
       setHabits([]);
+      
+      // Clear connections and tokens
+      setConnections({ gmail: false, gdrive: false, calendar: false });
+      setGmailToken(null);
+      setDriveToken(null);
+      setCalendarToken(null);
+      safeStorage.removeItem("heimdall_gmail_token");
+      safeStorage.removeItem("heimdall_gdrive_token");
+      safeStorage.removeItem("heimdall_calendar_token");
+      
+      // Close Settings Modal
+      setShowSettings(false);
     }
   };
 
@@ -2108,7 +2210,7 @@ if (data.action && data.action.name && data.action.parameters) {
         {activeTab === "actions" && (
           <ActionsTab
             onDetectGaps={executeDetectGapsAndNudge}
-            onCheckDocuments={executeCheckDriveDocuments}
+            onImportExportTimetable={() => setShowImportExportModal(true)}
             onWeeklyReport={() => setShowWeeklyReport(true)}
           />
         )}
@@ -2235,13 +2337,47 @@ if (data.action && data.action.name && data.action.parameters) {
         onEditCategory={handleEditCategory}
         onDeleteCategory={handleDeleteCategory}
       />
-      <ProfileModal
+       <ProfileModal
         isOpen={showProfileModal}
         onClose={() => setShowProfileModal(false)}
         user={user}
         onLogin={handleProfileLogin}
         onLogout={handleProfileLogout}
         onUpdateDisplayName={handleUpdateUserDisplayName}
+      />
+      <GapsAnalysisModal
+        isOpen={showGapsModal}
+        onClose={() => setShowGapsModal(false)}
+        isLoading={isLoadingGapsAnalysis}
+        inefficiencies={gapsAnalysisResults.inefficiencies}
+        conflicts={gapsAnalysisResults.conflicts}
+        recommendations={gapsAnalysisResults.recommendations}
+        onImplement={handleImplementGapsInefficiency}
+        onConfirmRecommendation={handleConfirmGapsRecommendation}
+      />
+      <ImportExportModal
+        isOpen={showImportExportModal}
+        onClose={() => setShowImportExportModal(false)}
+        tasks={tasks}
+        deadlines={deadlines}
+        connections={connections}
+        driveToken={driveToken}
+        onImportSuccess={(importedTasks, importedDeadlines) => {
+          setTasks((prev) => {
+            const existingTasks = new Set(prev.map((t) => t.task.toLowerCase() + "|" + t.day));
+            const newTasks = importedTasks.filter(
+              (t) => !existingTasks.has(t.task.toLowerCase() + "|" + t.day)
+            );
+            return [...prev, ...newTasks];
+          });
+          setDeadlines((prev) => {
+            const existingDeadlines = new Set(prev.map((d) => d.name.toLowerCase() + "|" + d.date));
+            const newDeadlines = importedDeadlines.filter(
+              (d) => !existingDeadlines.has(d.name.toLowerCase() + "|" + d.date)
+            );
+            return [...prev, ...newDeadlines];
+          });
+        }}
       />
 
 

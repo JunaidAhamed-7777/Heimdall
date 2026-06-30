@@ -1026,6 +1026,99 @@ app.post("/api/detect-gaps-and-nudge", (req, res) => {
   }
 });
 
+// Endpoint 6B: Detect gaps and analyze schedule using Gemini
+app.post("/api/detect-gaps-analysis", async (req, res) => {
+  try {
+    const { tasks = [], deadlines = [], currentDay = "Tuesday" } = req.body;
+    const ai = getGeminiClient();
+
+    const systemInstruction = `
+      You are Heimdall's core timeline intelligence system.
+      Analyze the user's upcoming tasks and deadlines for the next 14 days (current simulated day of the week is ${currentDay}).
+      
+      Identify:
+      1. Timeline Inefficiencies (e.g. poor pacing, clustering of high-stress tasks on one day, logical sequence issues, or missing gaps).
+      2. Scheduling Conflicts & Overlaps (overlapping times, tasks scheduled at the same time, or extremely tight schedules).
+      3. Strategic Recommendations (e.g., an upcoming deadline is approaching but no preparatory tasks are scheduled, or missing breaks).
+      
+      You must respond with a JSON object containing exactly these fields:
+      - inefficiencies: Array of objects. Each object must have:
+        - id: string (the ID of the task or deadline to update)
+        - type: string (either "task" or "deadline")
+        - description: string (why it is inefficient)
+        - suggestedChange: string (what is being changed, e.g., "Move 'Draft methodology' from Wednesday to Thursday afternoon to resolve clustering")
+        - updatedItem: Object (The modified task or deadline object. Keep all other fields of the item the same, but update fields like 'day', 'time', 'duration' as suggested)
+      - conflicts: Array of strings (e.g., "Conflict: Research Seminar overlaps with Dr. appointment on Wednesday"). If there are none, return an empty array.
+      - recommendations: Array of objects. Each object must have:
+        - description: string (the recommendation explanation, e.g., "Deadline for 'Presentation draft' is approaching on Friday, but no prep work is scheduled on Wednesday or Thursday.")
+        - proposedAction: string (optional, explanation of the action to execute, e.g., "Auto-schedule 30m prep tasks on Wed & Thu")
+        - tasksToCreate: Array of objects (optional, complete new TaskItem objects to create if the user clicks Confirm. Each task should have a unique random/timestamp-based ID, 'completed' set to false, and a logical day, time, duration, and category).
+        
+      Be precise, realistic, and highly supportive in your suggestions. Formulate realistic schedule adjustments.
+    `;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: [
+        { role: "user", parts: [{ text: `Here are the current tasks:\n${JSON.stringify(tasks)}\n\nHere are the active deadlines:\n${JSON.stringify(deadlines)}` }] }
+      ],
+      config: {
+        systemInstruction,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            inefficiencies: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  id: { type: Type.STRING },
+                  type: { type: Type.STRING },
+                  description: { type: Type.STRING },
+                  suggestedChange: { type: Type.STRING },
+                  updatedItem: { type: Type.OBJECT }
+                },
+                required: ["id", "type", "description", "suggestedChange", "updatedItem"]
+              }
+            },
+            conflicts: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            },
+            recommendations: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  description: { type: Type.STRING },
+                  proposedAction: { type: Type.STRING },
+                  tasksToCreate: {
+                    type: Type.ARRAY,
+                    items: { type: Type.OBJECT }
+                  }
+                },
+                required: ["description"]
+              }
+            }
+          },
+          required: ["inefficiencies", "conflicts", "recommendations"]
+        }
+      }
+    });
+
+    const text = response.text;
+    if (!text) {
+      throw new Error("No response from Gemini API");
+    }
+    const result = JSON.parse(text);
+    return res.json(result);
+  } catch (error: any) {
+    console.error("Error in detect-gaps-analysis:", error);
+    return res.status(500).json({ error: error.message || "Failed to analyze schedule." });
+  }
+});
+
 // Drive Document Monitoring Endpoints
 
 // POST /api/register-drive-document
