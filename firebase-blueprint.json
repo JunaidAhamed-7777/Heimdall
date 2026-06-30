@@ -7,6 +7,7 @@
         "categories": "array",
         "habits": "array",
         "chatMessages": "array",
+        "notifications": "array",
         "motif": "string",
         "displayName": "string",
         "connections": "map",

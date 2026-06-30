@@ -27,7 +27,7 @@ export default function MobileBottomNav({ activeTab, setActiveTab }: MobileBotto
         className={`flex flex-col items-center gap-1 ${activeTab === "advisor" ? "text-primary" : "text-on-surface-variant"}`}
       >
         <MessageSquare className="w-5 h-5" />
-        <span className="text-[9px] font-label-caps">ADVISOR</span>
+        <span className="text-[9px] font-label-caps">CHAT</span>
       </button>
     </nav>
   );

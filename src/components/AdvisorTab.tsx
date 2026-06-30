@@ -35,7 +35,7 @@ export default function AdvisorTab({
               <span className="material-symbols-outlined text-primary text-[18px]">psychology</span>
             </div>
             <div>
-              <h3 className="font-label-caps text-sm text-primary">Heimdall Advisor Room</h3>
+              <h3 className="font-label-caps text-sm text-primary">Heimdall Chat Room</h3>
               <p className="text-[10px] text-on-surface-variant">Cognitive Strategy Engine Online</p>
             </div>
           </div>

@@ -6,9 +6,11 @@ interface TopBarProps {
   simulatedDay: string;
   onDayChange: (day: string) => void;
   onSettingsClick: () => void;
+  onNotificationsClick: () => void;
+  hasUnread: boolean;
 }
 
-export default function TopBar({ simulatedDay, onDayChange, onSettingsClick  }: TopBarProps) {
+export default function TopBar({ simulatedDay, onDayChange, onSettingsClick, onNotificationsClick, hasUnread }: TopBarProps) {
   const [isOnline, setIsOnline] = useState<boolean>(true);
 
   // Check actual connectivity by pinging a reliable endpoint
@@ -69,8 +71,14 @@ export default function TopBar({ simulatedDay, onDayChange, onSettingsClick  }: 
             selectedDate={simulatedDay}
             onDateChange={onDayChange}
           />
-          <button className="material-symbols-outlined text-on-surface-variant hover:text-primary cursor-pointer">
+          <button
+            onClick={onNotificationsClick}
+            className="relative material-symbols-outlined text-on-surface-variant hover:text-primary cursor-pointer"
+          >
             notifications
+            {hasUnread && (
+              <span className="absolute top-0.5 right-0.5 block h-2 w-2 rounded-full ring-1 ring-surface bg-red-500" />
+            )}
           </button>
           <button
             onClick={onSettingsClick}

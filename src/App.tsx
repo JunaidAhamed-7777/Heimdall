@@ -52,6 +52,7 @@ import InfoModal from "./components/InfoModal";
 import SettingsModal from "./components/SettingsModal";
 import GapsAnalysisModal from "./components/GapsAnalysisModal";
 import ImportExportModal from "./components/ImportExportModal";
+import NotificationsModal, { NotificationItem } from "./components/NotificationsModal";
 import { doc, getDoc, setDoc, deleteDoc } from "firebase/firestore";
 
 // Helper function to generate an ICS calendar content string
@@ -212,6 +213,10 @@ const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => [
   }>({ inefficiencies: [], conflicts: [], recommendations: [] });
   const [showImportExportModal, setShowImportExportModal] = useState<boolean>(false);
 
+  // --- Notifications State ---
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [showNotificationsModal, setShowNotificationsModal] = useState<boolean>(false);
+
   // --- Google OAuth & User Profile States ---
   const [user, setUser] = useState<any | null>(null);
   const [showProfileModal, setShowProfileModal] = useState<boolean>(false);
@@ -260,6 +265,16 @@ const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => [
             if (data.motif) setMotif(data.motif);
             if (data.chatMessages) setChatMessages(data.chatMessages);
             if (data.habits) setHabits(data.habits);
+            if (data.notifications) {
+              const threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000;
+              const filtered = data.notifications.filter((n: any) => {
+                const t = new Date(n.timestamp).getTime();
+                return t >= threeDaysAgo;
+              });
+              setNotifications(filtered);
+            } else {
+              setNotifications([]);
+            }
             if (data.connections) {
               setConnections(data.connections);
             } else {
@@ -292,6 +307,7 @@ const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => [
               chatMessages: defaultChat,
               habits: [],
               connections: { gmail: false, gdrive: false, calendar: false },
+              notifications: [],
               displayName: firebaseUser.displayName,
               updatedAt: new Date().toISOString()
             };
@@ -304,6 +320,7 @@ const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => [
             setMotif(INITIAL_MOTIF);
             setChatMessages(defaultChat);
             setHabits([]);
+            setNotifications([]);
             
             setUser({
               uid: firebaseUser.uid,
@@ -339,6 +356,7 @@ const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => [
           }
         ]);
         setHabits([]);
+        setNotifications([]);
         setConnections({ gmail: false, gdrive: false, calendar: false });
         setConnectionErrors({ gmail: false, gdrive: false, calendar: false });
         setGmailToken(null);
@@ -564,6 +582,15 @@ const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: s
 
     setTasks((prev) => [...prev, newTaskObj]);
 
+    const newNotif: NotificationItem = {
+      id: `notif-${Date.now()}`,
+      type: "gmail_task",
+      title: `New task added from email: ${eventTitle} on ${resolvedDayName} at ${timeRange}.`,
+      timestamp: new Date().toISOString(),
+      read: false
+    };
+    setNotifications(prev => [newNotif, ...prev]);
+
     let conflictWarningMessage = "";
     if (conflictingTasks.length > 0) {
       const conflictNames = conflictingTasks.map(t => `"${t.task}" (${t.time})`).join(", ");
@@ -739,7 +766,7 @@ const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: s
           if (!email || !email.id) continue;
           newlyProcessedIds.push(email.id);
 
-          if (email.classification === "CONFIRMED_EVENT") {
+          if (email.classification === "EVENT_CONFIRMED" || email.classification === "CONFIRMED_EVENT") {
             await handleNewExtractedEvent(email);
           }
         }
@@ -809,12 +836,13 @@ const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: s
       chatMessages,
       habits,
       connections,
+      notifications,
       displayName: user.displayName,
       updatedAt: new Date().toISOString()
     }, { merge: true }).catch((err) => {
       console.error("Error saving user data to Firestore:", err);
     });
-  }, [tasks, categories, deadlines, motif, chatMessages, habits, connections, user?.displayName, user?.uid, isDataLoading]);
+  }, [tasks, categories, deadlines, motif, chatMessages, habits, connections, notifications, user?.displayName, user?.uid, isDataLoading]);
 
   // Track simulated day transitions to execute proactive audits automatically!
   const prevDayRef = useRef<string>(simulatedDay);
@@ -824,6 +852,63 @@ const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: s
       handleProactiveDayTransition(simulatedDay);
     }
   }, [simulatedDay]);
+
+  // Check for upcoming deadlines (due today or tomorrow)
+  useEffect(() => {
+    if (isDataLoading) return;
+    if (!deadlines || deadlines.length === 0) return;
+
+    const now = new Date(simulatedDay);
+    const potentialNewNotifs: NotificationItem[] = [];
+
+    deadlines.forEach((d: any) => {
+      if (!d || !d.date || !d.name) return;
+      const deadlineDate = new Date(d.date);
+      const diffTime = deadlineDate.getTime() - now.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      // If deadline is due today or tomorrow (diffDays between 0 and 1)
+      if (diffDays >= 0 && diffDays <= 1) {
+        let relativeTime = "";
+        if (diffDays === 0) {
+          relativeTime = "today";
+        } else {
+          relativeTime = "tomorrow";
+        }
+
+        potentialNewNotifs.push({
+          id: `notif-deadline-${d.id || d.name}`,
+          type: "upcoming_deadline",
+          title: `Deadline '${d.name}' is due ${relativeTime}.`,
+          timestamp: new Date().toISOString(),
+          read: false
+        });
+      }
+    });
+
+    if (potentialNewNotifs.length > 0) {
+      setNotifications((prev) => {
+        const added: NotificationItem[] = [];
+        potentialNewNotifs.forEach((newN) => {
+          // Check if already exists in prev by checking the unique deadline name
+          const nameMatch = newN.title.match(/'([^']+)'/);
+          const nameInN = nameMatch ? nameMatch[1] : "";
+          const exists = prev.some(n => 
+            n.type === "upcoming_deadline" && nameInN && n.title.includes(`'${nameInN}'`)
+          );
+          if (!exists) {
+            added.push({
+              ...newN,
+              id: `${newN.id}-${Date.now()}`
+            });
+          }
+        });
+
+        if (added.length === 0) return prev;
+        return [...added, ...prev];
+      });
+    }
+  }, [deadlines, simulatedDay, isDataLoading]);
 
   // --- Habits & Goals Tracking Core Engines ---
   
@@ -1813,7 +1898,7 @@ const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: s
 
       const analyzedResult = await response.json();
       
-      if (analyzedResult.classification === "CONFIRMED_EVENT") {
+      if (analyzedResult.classification === "EVENT_CONFIRMED" || analyzedResult.classification === "CONFIRMED_EVENT") {
         if (analyzedResult.needs_more_info) {
           setChatMessages((prev) => [
             ...prev,
@@ -2165,6 +2250,12 @@ if (data.action && data.action.name && data.action.parameters) {
     );
   }
 
+  const hasUnreadNotifications = notifications.some(n => !n.read);
+  const handleOpenNotifications = () => {
+    setShowNotificationsModal(true);
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  };
+
   return (
     <div className="dark runic-pattern min-h-screen flex flex-col">
       <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} user={user} onProfileClick={() => setShowProfileModal(true)} />
@@ -2172,6 +2263,8 @@ if (data.action && data.action.name && data.action.parameters) {
         simulatedDay={simulatedDay}
         onDayChange={setSimulatedDay}
         onSettingsClick={() => setShowSettings(true)}
+        onNotificationsClick={handleOpenNotifications}
+        hasUnread={hasUnreadNotifications}
       />
       <main className="flex-1 pt-16 pb-12 px-container-padding md:ml-52 transition-all duration-300">
         {activeTab === "agenda" && (
@@ -2378,6 +2471,13 @@ if (data.action && data.action.name && data.action.parameters) {
             return [...prev, ...newDeadlines];
           });
         }}
+      />
+
+      <NotificationsModal
+        isOpen={showNotificationsModal}
+        onClose={() => setShowNotificationsModal(false)}
+        connections={connections}
+        notifications={notifications}
       />
 
 

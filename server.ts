@@ -474,6 +474,68 @@ Sender: ${sender}
   };
 }
 
+export async function extract_event_details(email_subject: string, email_body: string, sender: string): Promise<{
+  event_name: string;
+  event_date: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  needs_more_info: boolean;
+  missing_critical_info_reason?: string;
+}> {
+  const ai = getGeminiClient();
+  const prompt = `You are the Heimdall event extraction agent.
+Today's Date: Tuesday, June 23, 2026.
+
+Task: Extract specific appointment/booking/event details from the provided email body.
+If the event is happening relative to today (e.g., "tomorrow", "this Friday"), calculate the correct date based on Today's Date (Tuesday, June 23, 2026).
+If the event date is completely missing or cannot be deduced, set "needs_more_info" to true and "event_date" to null.
+
+Provide a JSON response matching this schema:
+{
+  "event_name": "Descriptive title of the event (e.g., Dentist Appointment, Flight to Oslo, Dinner with Sarah)",
+  "event_date": "YYYY-MM-DD format (e.g., 2026-06-24)" or null,
+  "start_time": "HH:MM format (24-hour)" or null,
+  "end_time": "HH:MM format (24-hour)" or null,
+  "needs_more_info": boolean,
+  "missing_critical_info_reason": "string describing why details are missing" or null
+}
+
+Email Subject: ${email_subject}
+Email Body:
+${email_body.slice(0, 4000)}
+Sender: ${sender}
+`;
+
+  const response = await ai.models.generateContent({
+    model: "gemini-3.5-flash",
+    contents: prompt,
+    config: {
+      responseMimeType: "application/json",
+    },
+  });
+
+  try {
+    const parsed = JSON.parse(response.text ?? "{}");
+    return {
+      event_name: parsed.event_name || email_subject || "Event",
+      event_date: parsed.event_date || null,
+      start_time: parsed.start_time || "09:00",
+      end_time: parsed.end_time || "10:00",
+      needs_more_info: !!parsed.needs_more_info,
+      missing_critical_info_reason: parsed.missing_critical_info_reason || null,
+    };
+  } catch {
+    return {
+      event_name: email_subject || "Event",
+      event_date: null,
+      start_time: "09:00",
+      end_time: "10:00",
+      needs_more_info: true,
+      missing_critical_info_reason: "Failed to parse details dynamically",
+    };
+  }
+}
+
 // Define TaskItem type for type safety
 export interface TaskItem {
   id: string;
@@ -634,17 +696,17 @@ ${fullEmailText.slice(0, 5000)}
 Today's Date: Tuesday, June 23, 2026.
 
 Your task is to: 1. Classify the email into ONE of these 4 categories:
-- ACTION_REQUIRED: The email demands some action from the user (e.g., "Please submit", "Review required", "Action needed").
-- EVENT_CONFIRMED: The email confirms that an event/appointment/booking has been confirmed.
+- ACTION_REQUIRED: The email demands some specific action from the user (e.g., "Please submit", "Review required", "Action needed").
+- EVENT_CONFIRMED: The email confirms that an event/appointment/booking has been booked or confirmed (e.g., dentist appointment confirmed, hotel reservation, flight booked, ticket confirmation).
 - INFO: The email shares information without requiring immediate action.
-- UNRELATED: Spam, personal messages, etc.
+- IGNORE: Promotional emails, marketing material, general requests or invitations (where the meeting/event is NOT yet booked or confirmed), spam, newsletters, or personal updates.
 
 2. Provide a reason explaining your choice.
 3. Include a confidence score (0-100).
 
 Return a JSON object matching this schema:
 {
-  "classification": "ACTION_REQUIRED" | "EVENT_CONFIRMED" | "INFO" | "UNRELATED",
+  "classification": "ACTION_REQUIRED" | "EVENT_CONFIRMED" | "INFO" | "IGNORE",
   "reason": "string",
   "confidence": number
 }
@@ -655,6 +717,9 @@ Output: {"classification": "ACTION_REQUIRED", "reason": "Email explicitly reques
 
 2) Email: "Your dentist appointment is confirmed for Wednesday, June 24 at 2:30 PM"
 Output: {"classification": "EVENT_CONFIRMED", "reason": "Email confirms an appointment", "confidence": 100}
+
+3) Email: "Check out our new weekly sale on shoes! Get 20% off today only!"
+Output: {"classification": "IGNORE", "reason": "Promotional marketing/sale email", "confidence": 95}
 `;
 
   const ai = getGeminiClient();
@@ -761,6 +826,33 @@ app.post("/api/check-gmail", async (req, res) => {
             from,
             classification: 'ACTION_REQUIRED',
             error: "Action extraction failed",
+          });
+        }
+      } else if (parsedAnalysis.classification === 'EVENT_CONFIRMED') {
+        // Automatically extract event details
+        try {
+          const details = await extract_event_details(subject, bodyPartContent, from);
+          analyzedEmails.push({
+            id: msg.id,
+            subject,
+            from,
+            classification: 'EVENT_CONFIRMED',
+            event_name: details.event_name,
+            event_date: details.event_date,
+            start_time: details.start_time,
+            end_time: details.end_time,
+            needs_more_info: details.needs_more_info,
+            missing_critical_info_reason: details.missing_critical_info_reason,
+          });
+        } catch (extractError) {
+          console.error("Failed to extract event details:", extractError);
+          analyzedEmails.push({
+            id: msg.id,
+            subject,
+            from,
+            classification: 'EVENT_CONFIRMED',
+            needs_more_info: true,
+            missing_critical_info_reason: "Failed to extract event details automatically",
           });
         }
       } else {
