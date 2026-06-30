@@ -51,6 +51,8 @@ export default function ImportExportModal({
     }
   }, [isOpen, activeTab, connections.gdrive, driveToken]);
 
+  if (!isOpen) return null;
+
   const fetchDriveFiles = async () => {
     if (!driveToken) return;
     setIsLoadingDriveFiles(true);
