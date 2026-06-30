@@ -199,7 +199,7 @@ export default function ProfileModal({
                 <Check className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                 <div>
                   <p className="text-xs font-bold text-white">Your Google Profile Name</p>
-                  <p className="text-[10px] text-on-surface-variant">Used to personalize your Asgardian experience.</p>
+                  <p className="text-[10px] text-on-surface-variant">Used to personalize your experience.</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
@@ -227,6 +227,15 @@ export default function ProfileModal({
                   <p className="text-[10px] text-on-surface-variant">Used strictly if you link document sync pools.</p>
                 </div>
               </div>
+              <div className="flex items-start gap-3 opacity-60">
+                <Check className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-xs font-bold text-white flex items-center gap-1.5">
+                    Google Calendar <span className="text-[8px] bg-primary/20 text-primary border border-primary/30 px-1 py-0.5 rounded uppercase font-mono">Optional</span>
+                  </p>
+                  <p className="text-[10px] text-on-surface-variant">Syncing Calendar with Heimdall.</p>
+                </div>
+              </div>
             </div>
 
             <p className="text-xs text-on-surface-variant leading-relaxed mb-6 font-sans">
@@ -239,7 +248,7 @@ export default function ProfileModal({
               >
                 source code <ExternalLink className="w-3 h-3 inline" />
               </a>
-              .
+              . Please read our Privacy Policy to know how data is stored and handled.
             </p>
 
             {error && (
