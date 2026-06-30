@@ -98,7 +98,7 @@ export default function SettingsModal({
         </div>
 
         {/* Right panel (80%) */}
-        <div className={`w-4/5 p-6 overflow-y-auto custom-scrollbar relative transition-all duration-200 ${isAnyNestedOpen ? "blur-sm pointer-events-none" : ""}`}>
+        <div className={`w-4/5 p-6 flex flex-col relative transition-all duration-200 ${isAnyNestedOpen ? "blur-sm pointer-events-none" : ""}`}>
           <button
             onClick={onClose}
             className="absolute top-4 right-4 text-on-surface-variant hover:text-primary transition-colors"
@@ -112,7 +112,7 @@ export default function SettingsModal({
             {activeSection === "privacy" && "Privacy Policy"}
           </h2>
 
-          <div className="text-on-surface-variant font-body-md text-sm leading-relaxed">
+          <div className="text-on-surface-variant font-body-md text-sm leading-relaxed flex-1 min-h-0 overflow-y-auto custom-scrollbar">
             {activeSection === "account" && (
               <div className="space-y-4">
                 <button
@@ -251,7 +251,7 @@ export default function SettingsModal({
             )}
 
             {activeSection === "privacy" && (
-              <pre className="text-xs font-mono whitespace-pre-wrap text-left max-h-[55vh] overflow-y-auto custom-scrollbar">
+              <pre className="text-xs font-mono whitespace-pre-wrap text-left">
                 {privacyPolicyText}
               </pre>
             )}
