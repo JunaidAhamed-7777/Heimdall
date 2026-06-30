@@ -121,14 +121,27 @@ app.post("/api/generate-schedule", async (req, res) => {
 // Endpoint 2: Chat with Heimdall for scheduling advice, rescheduling, and proactive habit tracking
 app.post("/api/chat-advisor", async (req, res) => {
   try {
-    const { messages, currentSchedule, currentHabits = [], currentDay = "Tuesday" } = req.body;
+    const { 
+      messages, 
+      currentSchedule, 
+      currentHabits = [], 
+      currentDay = "Tuesday",
+      currentDeadlines = [],
+      currentCategories = [],
+      isDirectCommand = false
+    } = req.body;
     if (!messages || !Array.isArray(messages)) {
       return res.status(400).json({ error: "Invalid message payload." });
     }
 
     const ai = getGeminiClient();
 
+    const directCommandPrompt = isDirectCommand 
+      ? `The user is issuing a direct command from the schedule generator. Execute the requested action immediately without asking any follow-up questions. Assume all necessary details are provided.\nWhen isDirectCommand is true, do NOT ask any questions. Assume the user wants immediate execution. If the request is unclear, do your best with the information available.`
+      : "";
+
     const systemInstruction = `
+      ${directCommandPrompt}
       You are Heimdall, an elite, warm, authoritative, and deeply supportive AI productivity companion.
       You speak with professional composure, clarity, and balanced encouragement. Avoid robotic tech lingo or over-excited sales pitch hype. Speak like a helpful personal coach.
       "Life happens, let's get back on track together."
@@ -149,6 +162,12 @@ app.post("/api/chat-advisor", async (req, res) => {
       You have access to the user's active custom habits & streaks:
       ${JSON.stringify(currentHabits, null, 2)}
 
+      You have access to the user's current deadlines:
+      ${JSON.stringify(currentDeadlines, null, 2)}
+
+      You have access to the user's current category tags:
+      ${JSON.stringify(currentCategories, null, 2)}
+
 Your goals: 1. Address the user's message thoughtfully.
        2. Under the hood, you can invoke actions via the JSON "action" property depending on the conversation phase:
        - "suggest_schedule": Use this when recommending or presenting a list of tasks/schedule to the user.
@@ -158,6 +177,9 @@ Your goals: 1. Address the user's message thoughtfully.
        - "check_habit_status": Proactively check the list of habits for slips. Parameters: {"days_to_check": number}.
        - "detect_gaps_and_nudge": Scans today's schedule for free gaps between commitments, finds matching micro-tasks from the user's task list, and returns a nudge message. Parameters: {"schedule": array, "task_pool": array, "habits"?: array, "user_preferences"?: object}.
        - "register_drive_document": When a user provides a Google Drive file link or ID for a task they mentioned working on. Parameters: {"taskTitle": string, "fileId": string}.
+       - "add_deadline": When the user asks to create/add a deadline. Parameters: {"name": string, "date": string} where date is YYYY-MM-DD.
+       - "edit_deadline": When the user asks to edit/modify/update an existing deadline. Parameters: {"id": string, "name": string, "date": string}.
+       - "delete_deadline": When the user asks to delete/remove an existing deadline. Parameters: {"id": string}.
 
        3. **Onboarding & Setup**: Early in the first conversation, after learning about the user's tasks, ask: "Would you like me to help you build some daily habits? Things like exercise, reading, or meditation can be scheduled just like tasks. What's one small habit you'd like to start?"
        - When they describe a habit, trigger the "add_habit" action.
@@ -170,12 +192,14 @@ Your goals: 1. Address the user's message thoughtfully.
        - If a habit has been missed for 3+ days: "You've lost your 12-day meditation streak. Let's restart today — I've already blocked 07:30–07:40 for you. Just confirm and I'll add it to the calendar." Then call "suggest_schedule" or be ready to schedule!
        - Additionally, during daily check-ins, check registered documents for inactivity (no edits in 2+ days) and issue appropriate nudges.
 
-       6. Always return a valid JSON object matching this schema:
+       6. **Deadlines & Categories Management**: The user may ask to create, edit, or delete deadlines. Use the provided functions to manage deadlines. Deadlines have a name and a date. When the user says 'create a deadline named X for Y date', you should immediately create it without asking for confirmation (unless the request is ambiguous, in which case you may ask for clarification, but only in non-direct-command mode).
+
+       7. Always return a valid JSON object matching this schema:
       {
         "advisorResponse": "Your written advice",
         "updatedTasks": [ ... optional list of updated tasks ... ] or null,
         "action": {
-          "name": "suggest_schedule" | "create_calendar_events" | "add_habit" | "log_habit" | "check_habit_status" | "detect_gaps_and_nudge",
+          "name": "suggest_schedule" | "create_calendar_events" | "add_habit" | "log_habit" | "check_habit_status" | "detect_gaps_and_nudge" | "register_drive_document" | "add_deadline" | "edit_deadline" | "delete_deadline",
           "parameters": { ... }
         } or null
       }
@@ -220,7 +244,7 @@ Your goals: 1. Address the user's message thoughtfully.
 action: {
                type: Type.OBJECT,
                properties: {
-                 name: { type: Type.STRING, enum: ["suggest_schedule", "create_calendar_events", "add_habit", "log_habit", "check_habit_status", "detect_gaps_and_nudge", "register_drive_document"] },
+                 name: { type: Type.STRING, enum: ["suggest_schedule", "create_calendar_events", "add_habit", "log_habit", "check_habit_status", "detect_gaps_and_nudge", "register_drive_document", "add_deadline", "edit_deadline", "delete_deadline"] },
                  parameters: { type: Type.OBJECT }
                }
              }

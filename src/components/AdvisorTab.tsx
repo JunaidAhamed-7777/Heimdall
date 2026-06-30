@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { ChatMessage } from "../types";
 import { Send, RefreshCw } from "lucide-react";
+import VoiceInputButton from "./VoiceInputButton";
 
 interface AdvisorTabProps {
   chatMessages: ChatMessage[];
@@ -82,16 +83,24 @@ export default function AdvisorTab({
 
         {/* Input */}
         <form onSubmit={onSendChat} className="p-6 border-t border-outline-variant bg-surface">
-          <div className="relative">
-            <textarea
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              placeholder="Chat with Heimdall..."
-              className="w-full bg-surface-container-low border border-outline-variant p-4 pr-16 focus:border-primary outline-none text-on-surface font-body-md resize-none h-14 custom-scrollbar"
-            />
-            <button type="submit" disabled={isLoadingAdvisor} className="absolute bottom-4 right-4 w-10 h-10 bg-primary text-on-primary flex items-center justify-center hover:bg-primary-container transition-all">
-              <Send className="w-5 h-5" />
-            </button>
+          <div className="flex gap-3 items-end">
+            <div className="pb-1">
+              <VoiceInputButton
+                currentValue={chatInput}
+                onTranscriptChange={setChatInput}
+              />
+            </div>
+            <div className="relative flex-1">
+              <textarea
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="Chat with Heimdall..."
+                className="w-full bg-surface-container-low border border-outline-variant p-4 pr-16 focus:border-primary outline-none text-on-surface font-body-md resize-none h-14 custom-scrollbar"
+              />
+              <button type="submit" disabled={isLoadingAdvisor} className="absolute bottom-2 right-4 w-10 h-10 bg-primary text-on-primary flex items-center justify-center hover:bg-primary-container transition-all">
+                <Send className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </form>
       </div>

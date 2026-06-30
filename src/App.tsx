@@ -1836,7 +1836,7 @@ const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: s
   };
 
   // --- API Endpoint 2: Chat Advisor ---
-  const triggerAdvisorAPI = async (userMsgText: string, currentList: TaskItem[]) => {
+  const triggerAdvisorAPI = async (userMsgText: string, currentList: TaskItem[], isDirectCommand: boolean = false) => {
     setIsLoadingAdvisor(true);
     setApiError(null);
 
@@ -1865,7 +1865,10 @@ const [createdEvents, setCreatedEvents] = useState<Array<{ title: string; day: s
           messages: payloadMessages,
           currentSchedule: currentList,
           currentHabits: habits,
-          currentDay: simulatedDay
+          currentDay: simulatedDay,
+          currentDeadlines: deadlines,
+          currentCategories: categories,
+          isDirectCommand: isDirectCommand
         }),
       });
 
@@ -1902,6 +1905,12 @@ if (data.action && data.action.name && data.action.parameters) {
            executeDetectGapsAndNudge();
          } else if (actionName === "register_drive_document") {
            executeRegisterDriveDocument(params.taskTitle, params.fileId);
+         } else if (actionName === "add_deadline") {
+           setDeadlines((prev) => [...prev, { id: 'deadline-' + Date.now(), name: params.name, date: params.date }]);
+         } else if (actionName === "edit_deadline") {
+           setDeadlines((prev) => prev.map((d) => (d.id === params.id || d.name.toLowerCase() === params.name?.toLowerCase()) ? { ...d, name: params.name || d.name, date: params.date || d.date } : d));
+         } else if (actionName === "delete_deadline") {
+           setDeadlines((prev) => prev.filter((d) => d.id !== params.id && d.name.toLowerCase() !== params.name?.toLowerCase()));
          }
        }
 
@@ -2076,7 +2085,7 @@ if (data.action && data.action.name && data.action.parameters) {
             onAddHabit={executeAddHabit}
             onLogHabit={executeLogHabit}
             onRemoveHabit={handleDeleteHabit}
-            onRegenerateSchedule={(prompt) => handleAIGenerateSchedule({ preventDefault: () => {} } as React.FormEvent)}
+            onRegenerateSchedule={(prompt) => triggerAdvisorAPI(prompt, tasks, true)}
             categories={categories}
             onAddCategory={(cat) => setCategories(prev => [...prev, cat])}
             deadlines={deadlines}

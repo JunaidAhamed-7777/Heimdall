@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { INITIAL_TASKS, INITIAL_MOTIF } from "../utils/initialData";
 import DatePicker from "./DatePicker";
+import VoiceInputButton from "./VoiceInputButton";
 
 interface AgendaTabProps {
   tasks: TaskItem[];
@@ -455,15 +456,21 @@ export default function AgendaTab({
             </p>
             <form onSubmit={handleRegenerate} className="space-y-4">
               <textarea
-                rows={3}
+                rows={1}
                 value={rawPromptInput}
                 onChange={(e) => setRawPromptInput(e.target.value)}
                 placeholder="e.g., Move methodology to Thursday..."
-                className="w-full bg-surface border border-outline-variant rounded p-3 text-xs text-on-surface focus:border-primary"
+                className="w-full bg-surface border border-outline-variant rounded p-3 text-xs text-on-surface focus:border-primary resize-y min-h-[42px]"
               />
-              <button type="submit" disabled={isLoadingRegen} className="bg-primary text-on-primary px-4 py-2 rounded text-xs font-bold">
-                {isLoadingRegen ? <RefreshCw className="animate-spin inline w-3 h-3" /> : "Regenerate Timetable"}
-              </button>
+              <div className="flex gap-2 items-center">
+                <VoiceInputButton
+                  currentValue={rawPromptInput}
+                  onTranscriptChange={setRawPromptInput}
+                />
+                <button type="submit" disabled={isLoadingRegen} className="bg-primary text-on-primary px-4 py-2 rounded text-xs font-bold h-10 flex items-center justify-center">
+                  {isLoadingRegen ? <RefreshCw className="animate-spin inline w-3 h-3" /> : "Regenerate Timetable"}
+                </button>
+              </div>
             </form>
           </div>
         </div>{/* End right column */}
